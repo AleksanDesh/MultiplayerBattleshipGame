@@ -1,0 +1,15 @@
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\bin\Debug\net10.0\NetworkingAssignmentServer.exe
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\bin\Debug\net10.0\NetworkingAssignmentServer.deps.json
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\bin\Debug\net10.0\NetworkingAssignmentServer.runtimeconfig.json
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\bin\Debug\net10.0\NetworkingAssignmentServer.dll
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\bin\Debug\net10.0\NetworkingAssignmentServer.pdb
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\NetworkingAssignmentServer.GeneratedMSBuildEditorConfig.editorconfig
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\NetworkingAssignmentServer.AssemblyInfoInputs.cache
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\NetworkingAssignmentServer.AssemblyInfo.cs
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\NetworkingAssignmentServer.csproj.CoreCompileInputs.cache
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\NetworkingAssignmentServer.sourcelink.json
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\NetworkingAssignmentServer.dll
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\refint\NetworkingAssignmentServer.dll
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\NetworkingAssignmentServer.pdb
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\NetworkingAssignmentServer.genruntimeconfig.cache
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\ref\NetworkingAssignmentServer.dll
