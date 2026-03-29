@@ -8,8 +8,8 @@ namespace Model
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Start()
         {
-            _login = GameObject.FindAnyObjectByType<Server>().Login;
-            _login.LoginOrCreate("minekillerr", "123456789");
+            _login = FindFirstObjectByType<Server>().Login;
+            _login.LoginOrCreate("PC200", "kniga");
         }
 
         // Update is called once per frame

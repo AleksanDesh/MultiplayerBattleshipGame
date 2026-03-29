@@ -26,8 +26,9 @@ namespace Model
         public readonly int MaxMines;
 
         SessionParticipant[] _participants;
+        public PlayerSide _participantTurn { get; set; }
 
-        public SessionData(PlayerData player1, PlayerData player2, int maxShips = 12, int maxMines = 4, int mapSize = 8)
+        public SessionData(PlayerData player1, PlayerData player2, int maxShips = 8, int maxMines = 4, int mapSize = 8)
         {
             if (player1 == null) throw new ArgumentNullException(nameof(player1));
             if (player2 == null) throw new ArgumentNullException(nameof(player2));
@@ -45,6 +46,7 @@ namespace Model
 
             MaxMines = maxMines;
             MaxShips = maxShips;
+            _participantTurn = PlayerSide.First;
         }
 
         public PlayerSide GetSide(PlayerData player)
@@ -128,6 +130,8 @@ namespace Model
             for (int i = 0; i < mapSize; i++)
             {
                 map[i] = new Cell[mapSize];
+                for (int j = 0; j < mapSize; j++)
+                    map[i][j] = new Cell();
             }
             return map;
         }

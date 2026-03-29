@@ -9,10 +9,10 @@ namespace Model
         public PlaceShipResult PlaceShip(SessionData session, PlayerData player, int[] location)
         {
             if (session.Phase != SessionData.GamePhase.Preparation)
-                throw new InvalidOperationException("Cannot place ships after battle has started.");
+                throw new InvalidOperationException("SeaBattleBehavior: Cannot place ships after battle has started.");
 
             if (location == null || location.Length < 2)
-                throw new ArgumentException("Invalid location.", nameof(location));
+                throw new ArgumentException("SeaBattleBehavior: Invalid location.", nameof(location));
 
             var board = session.GetOwnBoard(player);
             var participant = session.GetParticipant(player);
@@ -28,9 +28,12 @@ namespace Model
             if (cell._state != Cell.CellState.Empty)
                 return PlaceShipResult.CellOccupied;
 
+            // TODO: add different sized ships
             for (int i = -1; i < 2; i++)
                 for (int j = -1; j < 2; j++)
-                    if (board[i][y]._state == Cell.CellState.Ship)
+                    if ((x + i >= 0) && (y + j >= 0) 
+                        && (x + i < board.Length) && (y + j < board.Length)
+                        && board[x + i][y + j]._state == Cell.CellState.Ship)
                         return PlaceShipResult.ShipNearby;
 
             if (participant.PlacedShips >= session.MaxShips)
@@ -45,9 +48,9 @@ namespace Model
         public PlaceMineResult PlaceMine(SessionData session, PlayerData player, int[] location)
         {
             if (session.Phase != SessionData.GamePhase.Preparation)
-                throw new InvalidOperationException("Cannot place mines after battle has started.");
+                throw new InvalidOperationException("SeaBattleBehavior: Cannot place mines after battle has started.");
             if (location == null || location.Length < 2)
-                throw new ArgumentException("Invalid location.", nameof(location));
+                throw new ArgumentException("SeaBattleBehavior: Invalid location.", nameof(location));
 
             var board = session.GetOwnBoard(player);
             var participant = session.GetParticipant(player);
@@ -75,13 +78,18 @@ namespace Model
         public BombingResult Bomb(SessionData session, PlayerData player, int[] location)
         {
             if (session.Phase != GamePhase.Battle)
-                throw new InvalidOperationException("Bombing is only allowed during battle.");
+                throw new InvalidOperationException("SeaBattleBehavior: Bombing is only allowed during battle.");
             if (location == null || location.Length < 2)
-                throw new ArgumentException("Invalid location.", nameof(location));
+                throw new ArgumentException("SeaBattleBehavior: Invalid location.", nameof(location));
 
             var board = session.GetEnemyBoard(player);
             var participant = session.GetParticipant(player);
             var enemyParticipant = session.GetEnemyParticipant(player);
+
+            if (session._participantTurn != participant.Side)
+            {
+                throw new InvalidOperationException("SeaBattleBehavior: It is not your turn, how did you send this? Are you cheating?");
+            }
 
             int x = location[0];
             int y = location[1];
@@ -91,6 +99,7 @@ namespace Model
 
             var cell = board[x][y];
 
+            session._participantTurn = enemyParticipant.Side;
             switch (cell._state)
             {
                 case Cell.CellState.Empty:
@@ -108,6 +117,7 @@ namespace Model
                         enemyParticipant.IncrementLostShips();
                         if (IfLost(session, enemyParticipant))
                             return BombingResult.Victory;
+                        session._participantTurn = participant.Side;
                         return BombingResult.Sucess;
                     }
                 case Cell.CellState.Mine:
@@ -120,7 +130,7 @@ namespace Model
                         break;
                     }
             }
-            return BombingResult.Sucess;
+            throw new NotImplementedException("SeaBattleBehavior: This is not expected nor implemented");
         }
 
         /// <summary>
