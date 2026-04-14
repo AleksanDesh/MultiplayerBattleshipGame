@@ -31,10 +31,10 @@ namespace Controller
 
         }
 
-        public void Join()
+        public async void Join()
         {
             //bool connecting = _server.ConnectUser(_username.text, _password.text);
-            bool connected = _networkClient.Login(_username.text, _password.text);
+            bool connected = await _networkClient.Login(_username.text, _password.text);
 
             Debug.Log($"SeaBattleClientController: Loging to the server" +
                 $" was {connected} with username {_username.text} and password {_password.text}");

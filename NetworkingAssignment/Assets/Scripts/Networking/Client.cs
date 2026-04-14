@@ -3,15 +3,20 @@ using OSCTools;
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using UnityEngine;
+using static UnityEngine.Rendering.DebugUI.Table;
 
 namespace Network
 {
     public class Client : MonoBehaviour
-    {
+    { // TODO: Add error displaying dictionary
         public IPAddress ServerIP = IPAddress.Loopback;
-        TcpNetworkConnection connection;
-        OSCDispatcher dispatcher;
+        TcpNetworkConnection _connection;
+        OSCDispatcher _dispatcher;
+
+        // Answer if the login was sucesseful
+        private TaskCompletionSource<bool> loginTcs;
 
         // ----- TicTacToe client things:
 
@@ -51,11 +56,11 @@ namespace Network
             {
                 TcpClient client = new TcpClient();
                 client.Connect(new IPEndPoint(ServerIP, port));
-                connection = new TcpNetworkConnection(client);
+                _connection = new TcpNetworkConnection(client);
                 Debug.Log("Client: Connecting with client to server " + ServerIP);
 
-                dispatcher = new OSCDispatcher();
-                dispatcher.ShowIncomingMessages = true;
+                _dispatcher = new OSCDispatcher();
+                _dispatcher.ShowIncomingMessages = true;
                 Initialize();
                 return true;
             }
@@ -66,19 +71,24 @@ namespace Network
             }
         }
 
-        public bool Login(string username, string password)
+        public Task<bool> Login(string username, string password)
         {
-            return false;
+            loginTcs = new TaskCompletionSource<bool>();
+            //OSCMessageOut message = new OSCMessageOut("/MakeMove").AddInt(row).AddInt(col);
+            OSCMessageOut message = new OSCMessageOut("/Login").AddString(username).AddString(password);
+            _connection.Send(message.GetBytes());
+            return loginTcs.Task;
         }
 
-        public bool Register(string username, string password)
+        public void Register(string username, string password)
         {
-            return false;
+
         }
 
         void Initialize()
         {
             // Subscribe to methods.
+            _dispatcher.AddListener("/TryJoin", TryEnter, OSCUtil.INT);
         }
 
         /// <summary>
@@ -88,7 +98,7 @@ namespace Network
         {
             OSCMessageIn mess = new OSCMessageIn(packet);
             Debug.Log("Message arrives on client: " + mess);
-            dispatcher.HandlePacket(packet, remote);
+            _dispatcher.HandlePacket(packet, remote);
         }
 
         // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -101,21 +111,60 @@ namespace Network
         void Update()
         {
             // Check for incoming packets, and deal with them:
-            while (connection.Available() > 0)
+            while (_connection.Available() > 0)
             {
-                HandlePacket(connection.GetPacket(), connection.Remote);
+                HandlePacket(_connection.GetPacket(), _connection.Remote);
             }
             // TODO: disconnect handling
         }
 
-        //void Initialize()
-        //{
-        //    // The (optional) list of parameter types (OSCUtil.INT) lets the dispatcher filter
-        //    //  messages that do not satisfy the expected signature (=parameter list):
-        //    dispatcher.AddListener("/CellChange", CellChangeRpc, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT);
-        //    dispatcher.AddListener("/ActivePlayer", ActivePlayerChangeRpc, OSCUtil.INT);
-        //    dispatcher.AddListener("/GameOver", GameOverRpc, OSCUtil.INT);
-        //    dispatcher.AddListener("/PlayerInfo", PlayerInfoRpc, OSCUtil.INT);
-        //}
+
+        #region receivedMessages
+        /// <summary>
+        /// -1 = something went REALLY WRONG
+        /// 0 = user already connected
+        /// 1 = sucess
+        /// 2 = wrong username
+        /// 3 = wrong password
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="remote"></param>
+        void TryEnter(OSCMessageIn message, IPEndPoint remote)
+        {
+            int result = message.ReadInt();
+            bool success = result == 1;
+            loginTcs?.TrySetResult(success);
+            loginTcs = null;
+            // For now no display of errors.
+            // TODO: Add error message pop-up whenever something goes wrong
+            switch (result)
+            {
+                case 0:
+                    {
+                        break;
+                    }
+                case 1:
+                    {
+                        // Ignore
+                        break;
+                    }
+                case 2:
+                    {
+
+                        break;
+                    }
+                case 3:
+                    {
+                        break;
+                    }
+                default:
+                    {
+                        break;
+                    }
+
+            }
+        }
+
+        #endregion
     }
 }

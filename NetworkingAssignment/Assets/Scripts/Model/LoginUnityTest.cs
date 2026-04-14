@@ -9,8 +9,9 @@ namespace Model
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Start()
         {
-            _login = FindFirstObjectByType<Server>().Login;
-            _login.LoginOrCreate("PC200", "kniga");
+            Debug.LogWarning("Don't use me, I won't work anyways right now");
+            //_login = FindFirstObjectByType<Server>().Login;
+            //_login.LoginOrCreate("PC200", "kniga");
         }
 
         // Update is called once per frame

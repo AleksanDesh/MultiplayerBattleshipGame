@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Sockets;
 using UnityEngine;
 using static Model.SeaBattleBehavior;
+using static UnityEngine.UIElements.UxmlAttributeDescription;
 
 namespace Network
 {
@@ -14,9 +15,10 @@ namespace Network
     internal class Server : MonoBehaviour
     {
         // ----- General server code:
-        TcpListener listener;
-        List<TcpNetworkConnection> connections;
-        OSCDispatcher dispatcher;
+        TcpListener _listener;
+        List<TcpNetworkConnection> _allConnections;
+        List<TcpNetworkConnection> _unloggedConnections;
+        OSCDispatcher _dispatcher;
 
         SeaBattleBehavior _battleBehavior;
         Login _login;
@@ -26,6 +28,9 @@ namespace Network
         List<SessionData> _sessionDatas = new List<SessionData>();
         Dictionary<string, SessionData> _userSessionKey = new Dictionary<string, SessionData>();
         Dictionary<string, PlayerData> _userPlayerKey = new Dictionary<string, PlayerData>();
+        Dictionary<TcpNetworkConnection, PlayerData> _tcpNetPlayerKey = new Dictionary<TcpNetworkConnection, PlayerData>();
+        
+
 
         // Queing for players, now enques all newly connected users
         Queue<PlayerData> _playerQueue = new Queue<PlayerData>();
@@ -37,106 +42,52 @@ namespace Network
             _login = new Login(path);
 
 
-
+            // TODO: make the port auto adjustable
             int port = 5376;
             Debug.Log("Starting server at " + port);
-            listener = new TcpListener(IPAddress.Any, port);
-            listener.Start();
+            _listener = new TcpListener(IPAddress.Any, port);
+            _listener.Start();
 
-            connections = new List<TcpNetworkConnection>();
+            _allConnections = new List<TcpNetworkConnection>();
+            _unloggedConnections = new List<TcpNetworkConnection>();
 
             // Initialize the dispatcher and callbacks for incoming OSC messages:
-            dispatcher = new OSCDispatcher();
-            dispatcher.ShowIncomingMessages = true;
+            _dispatcher = new OSCDispatcher();
+            _dispatcher.ShowIncomingMessages = true;
             Initialize();
         }
 
         void Initialize()
         {
             // TODO: Subscribe to the apropriate methods
+            _dispatcher.AddListener("/Login", UserLogin, OSCUtil.STRING, OSCUtil.STRING);
         }
 
         void AcceptNewConnection()
         {
-            if (listener.Pending())
+            if (_listener.Pending())
             {
-                TcpClient client = listener.AcceptTcpClient();
+                TcpClient client = _listener.AcceptTcpClient();
                 TcpNetworkConnection connection = new TcpNetworkConnection(client);
-                connections.Add(connection);
+                _allConnections.Add(connection);
+                _unloggedConnections.Add(connection);
                 Debug.Log("Server: Adding new connection from " + connection.Remote);
             }
         }
+        void UpdateConnections()
+        {
+            foreach (TcpNetworkConnection conn in _allConnections)
+                while (conn.Available() > 0)
+                    HandlePacket(conn.GetPacket(), conn.Remote);
+        }
+        void HandlePacket(byte[] packet, IPEndPoint remote)
+        {
+            OSCMessageIn mess = new OSCMessageIn(packet);
+            Debug.Log("Server: Message arrived to server: " + mess);
 
-        //void ClientJoined(TcpNetworkConnection newClient)
-        //{
-        //    if (playerIDs.Count < 2)
-        //    {
-        //        // We had fewer than 2 players, so this new client will be a player.
-        //        playerIDs[newClient] = playerIDs.Count + 1;
-        //        Debug.Log($"Registering new player: {newClient.Remote} = player {playerIDs[newClient]}");
-        //        if (playerIDs.Count == 2)
-        //        { // start game
-        //            Debug.Log("Server: starting game");
-        //            foreach (var pid in playerIDs.Keys)
-        //            {
-        //                SendPrivateInformationCommand(playerIDs[pid], pid);
-        //            }
-        //        }
-        //    }
-        //    else
-        //    {
-        //        Debug.Log("Sorry - already have two players");
-        //        // Note: this client is still allowed to join as spectator, but not as player!
-        //        // TODO: Send a message to this client
-        //    }
-        //}
-        //void AcceptNewConnections()
-        //{
-        //    if (listener.Pending())
-        //    {
-        //        TcpClient client = listener.AcceptTcpClient();
-        //        TcpNetworkConnection connection = new TcpNetworkConnection(client);
-        //        connections.Add(connection);
-        //        Debug.Log("Server: Adding new connection from " + connection.Remote);
-        //        ClientJoined(connection);
-        //    }
-        //}
-        //void ClientJoined(TcpNetworkConnection newClient)
-        //{
-        //    if (playerIDs.Count < 2)
-        //    {
-        //        // We had fewer than 2 players, so this new client will be a player.
-        //        playerIDs[newClient] = playerIDs.Count + 1;
-        //        Debug.Log($"Registering new player: {newClient.Remote} = player {playerIDs[newClient]}");
-        //        if (playerIDs.Count == 2)
-        //        { // start game
-        //            Debug.Log("Server: starting game");
-        //            foreach (var pid in playerIDs.Keys)
-        //            {
-        //                SendPrivateInformationCommand(playerIDs[pid], pid);
-        //            }
-        //        }
-        //    }
-        //    else
-        //    {
-        //        Debug.Log("Sorry - already have two players");
-        //        // Note: this client is still allowed to join as spectator, but not as player!
-        //        // TODO: Send a message to this client
-        //    }
-        //}
-        //
-        //void UpdateConnections()
-        //{
-        //    foreach (TcpNetworkConnection conn in connections)
-        //    {
-        //        // The connection will call HandlePacket when a packet is available:
-        //        while (conn.Available() > 0)
-        //        {
-        //            HandlePacket(conn.GetPacket(), conn.Remote);
-        //        }
-        //    }
-        //}
-        //
+            _dispatcher.HandlePacket(packet, remote);
+        }
+
         //void CleanConnections()
         //{
         //
@@ -144,6 +95,7 @@ namespace Network
         void Update()
         {
             AcceptNewConnection();
+            UpdateConnections();
         }
 
 
@@ -158,9 +110,77 @@ namespace Network
 
 
         #region UserLoging
+        void UserLogin(OSCMessageIn message, IPEndPoint remote)
+        {
+            string username = message.ReadString();
+            string password = message.ReadString();
+            Debug.Log($"Server: Received Login attempt with username {username} and password {password}");
+            bool sucess = TryUserLogin(username, password, out var answer, out var playerData);
+            OSCMessageOut reply = new OSCMessageOut("/TryJoin").AddInt(answer);
+            foreach (var conn in _unloggedConnections)
+            {
+                if (conn.Remote.Equals(remote))
+                {
+                    if (sucess)
+                        _tcpNetPlayerKey.Add(conn, playerData);
+                    conn.Send(reply.GetBytes());
+                }
+            }
+        }
+
+        /// <summary>
+        /// Attempt to connect the user
+        /// TODO: Make it so the answer will be a number, that coresponds to a certain error. Dictionary of errors,
+        /// so i can send a number, which will represent what went wrong
+        /// </summary>
+        /// <param name="answer"> The output of what happend. 
+        /// -1 = something went REALLY WRONG
+        /// 0 = user already connected
+        /// 1 = sucess
+        /// 2 = wrong username
+        /// 3 = wrong password
+        /// </param>
+        /// <returns></returns>
+        bool TryUserLogin(string username, string password, out int answer, out PlayerData playerData)
+        {
+            answer = -1;
+            bool sucess = _login.LoginUser(username, password, out PlayerData user);
+            playerData = user;
+            if (sucess)
+            {
+                if (!_userPlayerKey.ContainsKey(name))
+                    _userPlayerKey.Add(name, user);
+                else
+                {
+                    Debug.LogWarning($"Trying to connect already connected user {name}");
+                    answer = 0;
+                    return false;
+                }
+                _connectedPlayersMap.Add(user);
+                _connectedPlayersList.Add(user);
+                // Enqueue immediately
+                _playerQueue.Enqueue(user);
+                Debug.Log($"Server: {name} connected succesefully, added to queue");
+                answer = 1;
+                return true;
+            }
+            else
+            {
+                if (user == null)
+                    answer = 2;
+                else
+                    answer = 3;
+                return false;
+            }
+        }
+
+        void UserRegister()
+        {
+
+        }
         public bool ConnectUser(string name, string password)
         { // TODO: maybe add instant data sending with the leaderboards?
-            var user = _login.LoginOrCreate(name, password);
+            bool success  = _login.LoginOrCreate(name, password, out PlayerData user);
             if (user != null)
             {// TODO: add a check if the user is already in a session, if he is, put him in there
                 if (!_userPlayerKey.ContainsKey(name))
