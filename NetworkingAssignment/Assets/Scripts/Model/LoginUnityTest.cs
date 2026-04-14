@@ -1,3 +1,4 @@
+using Network;
 using UnityEngine;
 
 namespace Model

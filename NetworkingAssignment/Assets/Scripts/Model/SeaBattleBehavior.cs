@@ -29,6 +29,13 @@ namespace Model
                 return PlaceShipResult.CellOccupied;
 
             // TODO: add different sized ships
+            //System.Numerics.Vector2 pos = new System.Numerics.Vector2(2, 2);
+            //Ship debug = new Ship(pos, 3, false);
+            //if (false)
+            //    for (int l = -debug.length / 2; l < debug.length
+            //        ; l++)
+
+
             for (int i = -1; i < 2; i++)
                 for (int j = -1; j < 2; j++)
                     if ((x + i >= 0) && (y + j >= 0) 
@@ -116,7 +123,10 @@ namespace Model
                         cell._state = Cell.CellState.Bombed;
                         enemyParticipant.IncrementLostShips();
                         if (IfLost(session, enemyParticipant))
+                        {
+                            player.UpdateTopScore(player.TopScore+1);
                             return BombingResult.Victory;
+                        }
                         session._participantTurn = participant.Side;
                         return BombingResult.Sucess;
                     }

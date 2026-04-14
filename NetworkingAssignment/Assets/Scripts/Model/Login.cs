@@ -40,5 +40,22 @@ namespace Model
 
             return newPlayer;
         }
+        public void SaveAccount(PlayerData player)
+        {
+            if (player == null)
+                throw new ArgumentNullException(nameof(player));
+
+            var players = _store.Load();
+
+            var existing = players.FirstOrDefault(p =>
+                string.Equals(p.Username, player.Username, StringComparison.OrdinalIgnoreCase));
+
+            if (existing == null)
+                throw new InvalidOperationException("Account does not exist.");
+
+            existing.UpdateTopScore(player.TopScore);
+
+            _store.Save(players);
+        }
     }
 }

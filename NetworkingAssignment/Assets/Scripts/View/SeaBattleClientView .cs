@@ -1,6 +1,7 @@
 using Controller;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace View
 {
@@ -18,6 +19,7 @@ namespace View
         [Header("Output")]
         [SerializeField] private TMP_Text _resultText;
 
+        
         private void Awake()
         {
             if (_controller == null)
@@ -32,6 +34,7 @@ namespace View
         {
             if (_controller == null)
                 return;
+
         }
 
         public void OnPlaceShipClicked()
