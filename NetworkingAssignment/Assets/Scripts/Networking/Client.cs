@@ -1,3 +1,4 @@
+using Model;
 using NetworkConnections;
 using OSCTools;
 using System;
@@ -17,6 +18,53 @@ namespace Network
 
         // Answer if the login was sucesseful
         private TaskCompletionSource<bool> loginTcs;
+
+        private sealed class Location
+        {
+            public int X { get; }
+            public int Y { get; }
+            public bool IsMySide { get; }
+            public Location(int x, int y, bool isMySide = true)
+            {
+                X = x;
+                Y = y;
+                IsMySide = isMySide;
+            }
+        }
+
+        public delegate void ShipPlacementEvent(int x, int y, Ship ship);
+        public event ShipPlacementEvent OnShipPlacement;
+        private PendingShipPlacement _pendingShipPlacement;
+        private sealed class PendingShipPlacement
+        {
+            public Location location { get; }
+            public Ship Ship { get; }
+            public TaskCompletionSource<int> Tcs { get; }
+
+            public PendingShipPlacement(int x, int y, Ship ship)
+            {
+                location = new Location(x, y);
+                Ship = ship;
+                Tcs = new TaskCompletionSource<int>();
+            }
+        }
+
+        public delegate void MinePlacementEvent(int x, int y);
+        public event MinePlacementEvent OnMinePlacement;
+        private PendingMinePlacement _pendingMinePlacement;
+        private sealed class PendingMinePlacement
+        {
+            public Location location { get; }
+            public TaskCompletionSource<int> Tcs { get; }
+            public PendingMinePlacement(int x, int y)
+            {
+                location = new Location(x, y);
+                Tcs = new TaskCompletionSource<int>();
+            }
+        }
+
+
+
 
         // ----- TicTacToe client things:
 
@@ -71,6 +119,9 @@ namespace Network
             }
         }
 
+        #region sendingMessages
+
+
         public Task<bool> Login(string username, string password)
         {
             loginTcs = new TaskCompletionSource<bool>();
@@ -85,21 +136,25 @@ namespace Network
 
         }
 
-        void Initialize()
+        public Task<int> PlaceShip(int x, int y, Ship ship)
         {
-            // Subscribe to methods.
-            _dispatcher.AddListener("/TryJoin", TryEnter, OSCUtil.INT);
+            _pendingShipPlacement = new PendingShipPlacement(x, y, ship);
+            // TODO: Add different sized ship details
+            OSCMessageOut message = new OSCMessageOut("/PlaceShip").AddInt(x).AddInt(y);
+            _connection.Send(message.GetBytes());
+            return _pendingShipPlacement.Tcs.Task;
         }
 
-        /// <summary>
-        /// Called from NetworkConnection callback (connection.Update), when a packet arrives:
-        /// </summary>
-        void HandlePacket(byte[] packet, IPEndPoint remote)
+        public Task<int> PlaceMine(int x, int y)
         {
-            OSCMessageIn mess = new OSCMessageIn(packet);
-            Debug.Log("Message arrives on client: " + mess);
-            _dispatcher.HandlePacket(packet, remote);
+            _pendingMinePlacement = new PendingMinePlacement(x, y);
+            // TODO: Add different sized ship details
+            OSCMessageOut message = new OSCMessageOut("/PlaceMine").AddInt(x).AddInt(y);
+            _connection.Send(message.GetBytes());
+            return _pendingMinePlacement.Tcs.Task;
         }
+        #endregion
+
 
         // Start is called once before the first execution of Update after the MonoBehaviour is created
         void Start()
@@ -118,8 +173,22 @@ namespace Network
             // TODO: disconnect handling
         }
 
-
+        // TODO: Make every method call the view error display, and send it the result if not 0, so it displays the error as a string
         #region receivedMessages
+        void HandlePacket(byte[] packet, IPEndPoint remote)
+        {
+            OSCMessageIn mess = new OSCMessageIn(packet);
+            Debug.Log("Message arrives on client: " + mess);
+            _dispatcher.HandlePacket(packet, remote);
+        }
+        void Initialize()
+        {
+            // Subscribe to methods.
+            _dispatcher.AddListener("/TryJoin", TryEnter, OSCUtil.INT);
+            _dispatcher.AddListener("/PlaceShip", PlaceShip, OSCUtil.INT);
+            _dispatcher.AddListener("/PlaceMine", PlaceMine, OSCUtil.INT);
+        }
+
         /// <summary>
         /// -1 = something went REALLY WRONG
         /// 0 = user already connected
@@ -132,7 +201,7 @@ namespace Network
         void TryEnter(OSCMessageIn message, IPEndPoint remote)
         {
             int result = message.ReadInt();
-            bool success = result == 1;
+            bool success = result == 0;
             loginTcs?.TrySetResult(success);
             loginTcs = null;
             // For now no display of errors.
@@ -140,12 +209,12 @@ namespace Network
             switch (result)
             {
                 case 0:
-                    {
+                    {  
+                        // Ignore
                         break;
                     }
                 case 1:
                     {
-                        // Ignore
                         break;
                     }
                 case 2:
@@ -163,6 +232,50 @@ namespace Network
                     }
 
             }
+        }
+
+        /// <summary>
+        /// -1 = something went REALLY WRONG
+        /// 0 = placed sucesefully
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="remote"></param>
+        void PlaceShip(OSCMessageIn message, IPEndPoint remote)
+        {
+            int result = message.ReadInt();
+
+            var pending = _pendingShipPlacement;
+            _pendingShipPlacement = null;
+
+            if (pending == null)
+                return;
+            if (result == 0) // Make the actual placement
+                OnShipPlacement?.Invoke(pending.location.X, pending.location.Y, pending.Ship);
+            // Else display an error
+            // TODO.
+            pending.Tcs?.TrySetResult(result);
+        }
+
+        /// <summary>
+        /// -1 = something went REALLY WRONG
+        /// 0 = placed sucesefully
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="remote"></param>
+        void PlaceMine(OSCMessageIn message, IPEndPoint remote)
+        {
+            int result = message.ReadInt();
+
+            var pending = _pendingMinePlacement;
+            _pendingMinePlacement = null;
+
+            if (pending == null)
+                return;
+            if (result == 0) // Make the actual placement
+                OnMinePlacement?.Invoke(pending.location.X, pending.location.Y);
+            // Else display an error
+            // TODO.
+            pending.Tcs?.TrySetResult(result);
         }
 
         #endregion

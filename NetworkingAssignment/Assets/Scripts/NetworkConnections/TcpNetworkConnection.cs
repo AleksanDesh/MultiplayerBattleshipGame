@@ -1,7 +1,8 @@
 using System.Net;			// IPEndPoint
 using System.Net.Sockets;	// TcpClient
 using System;               // BitConverter
-using System.Collections.Generic; // Queue
+using System.Collections.Generic;
+using Model; // Queue
 
 namespace NetworkConnections {
 
@@ -12,7 +13,8 @@ namespace NetworkConnections {
 	/// catches most exceptions. 
 	/// </summary>
 	public class TcpNetworkConnection {
-		public int LocalPort {
+
+        public int LocalPort {
 			get {
 				if (localPort < 0 && socket.Client.LocalEndPoint != null) {
 					localPort = ((IPEndPoint)(socket.Client.LocalEndPoint)).Port;

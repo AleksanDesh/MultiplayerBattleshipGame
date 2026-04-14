@@ -22,13 +22,14 @@ namespace Network
 
         SeaBattleBehavior _battleBehavior;
         Login _login;
-        public Login Login => _login;
+        //public Login Login => _login;
         HashSet<PlayerData> _connectedPlayersMap = new HashSet<PlayerData>();
         List<PlayerData> _connectedPlayersList = new List<PlayerData>();
         List<SessionData> _sessionDatas = new List<SessionData>();
         Dictionary<string, SessionData> _userSessionKey = new Dictionary<string, SessionData>();
         Dictionary<string, PlayerData> _userPlayerKey = new Dictionary<string, PlayerData>();
         Dictionary<TcpNetworkConnection, PlayerData> _tcpNetPlayerKey = new Dictionary<TcpNetworkConnection, PlayerData>();
+        Dictionary<IPEndPoint, TcpNetworkConnection> _ipEndToTcpNetKey = new Dictionary<IPEndPoint, TcpNetworkConnection>();
         
 
 
@@ -55,12 +56,6 @@ namespace Network
             _dispatcher = new OSCDispatcher();
             _dispatcher.ShowIncomingMessages = true;
             Initialize();
-        }
-
-        void Initialize()
-        {
-            // TODO: Subscribe to the apropriate methods
-            _dispatcher.AddListener("/Login", UserLogin, OSCUtil.STRING, OSCUtil.STRING);
         }
 
         void AcceptNewConnection()
@@ -108,68 +103,109 @@ namespace Network
             }
         }
 
-
-        #region UserLoging
-        void UserLogin(OSCMessageIn message, IPEndPoint remote)
+        #region ConnectionRequests
+        void Initialize()
+        {
+            // TODO: Subscribe to the apropriate methods
+            _dispatcher.AddListener("/Login", ConnectionLoginRequest, OSCUtil.STRING, OSCUtil.STRING);
+            _dispatcher.AddListener("/PlaceShip", ConnectionPlaceShipRequest, OSCUtil.INT, OSCUtil.INT);
+            _dispatcher.AddListener("/PlaceMine", ConnectionPlaceMineRequest, OSCUtil.INT, OSCUtil.INT);
+        }
+        void ConnectionLoginRequest(OSCMessageIn message, IPEndPoint remote)
         {
             string username = message.ReadString();
             string password = message.ReadString();
             Debug.Log($"Server: Received Login attempt with username {username} and password {password}");
-            bool sucess = TryUserLogin(username, password, out var answer, out var playerData);
-            OSCMessageOut reply = new OSCMessageOut("/TryJoin").AddInt(answer);
+            bool sucess = TryUserLogin(username, password, out var result, out var playerData);
             foreach (var conn in _unloggedConnections)
             {
                 if (conn.Remote.Equals(remote))
                 {
                     if (sucess)
+                    {
                         _tcpNetPlayerKey.Add(conn, playerData);
+                        _ipEndToTcpNetKey.Add(remote, conn);
+                        _unloggedConnections.Remove(conn);
+                    }
+                    OSCMessageOut reply = new OSCMessageOut("/TryJoin").AddInt(result);
                     conn.Send(reply.GetBytes());
+                    break;
                 }
             }
         }
 
+        void ConnectionPlaceShipRequest(OSCMessageIn message, IPEndPoint remote)
+        {
+            int x = message.ReadInt();
+            int y = message.ReadInt();
+            int[] coordinates = new int[2] { x, y };
+            TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
+            var player = _tcpNetPlayerKey[connection];
+            string debug = PlaceShip(player.Username, coordinates, out int result);
+            Debug.Log(debug);
+            OSCMessageOut reply = new OSCMessageOut("/PlaceShip").AddInt(result);
+            connection.Send(reply.GetBytes());
+
+        }
+
+        void ConnectionPlaceMineRequest(OSCMessageIn message, IPEndPoint remote)
+        {
+            int x = message.ReadInt();
+            int y = message.ReadInt();
+            int[] coordinates = new int[2] { x, y };
+            TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
+            var player = _tcpNetPlayerKey[connection];
+            string debug = PlaceMine(player.Username, coordinates, out int result);
+            Debug.Log(debug);
+            OSCMessageOut reply = new OSCMessageOut("/PlaceMine").AddInt(result);
+            connection.Send(reply.GetBytes());
+
+        }
+        #endregion
+
+        #region UserLoging
         /// <summary>
         /// Attempt to connect the user
         /// TODO: Make it so the answer will be a number, that coresponds to a certain error. Dictionary of errors,
         /// so i can send a number, which will represent what went wrong
         /// </summary>
-        /// <param name="answer"> The output of what happend. 
+        /// <param name="result"> The output of what happend. 
         /// -1 = something went REALLY WRONG
-        /// 0 = user already connected
-        /// 1 = sucess
+        /// 0 = sucess
+        /// 1 = user already connected
         /// 2 = wrong username
         /// 3 = wrong password
         /// </param>
         /// <returns></returns>
-        bool TryUserLogin(string username, string password, out int answer, out PlayerData playerData)
+        bool TryUserLogin(string username, string password, out int result, out PlayerData playerData)
         {
-            answer = -1;
+            result = -1;
             bool sucess = _login.LoginUser(username, password, out PlayerData user);
             playerData = user;
             if (sucess)
             {
-                if (!_userPlayerKey.ContainsKey(name))
-                    _userPlayerKey.Add(name, user);
+                if (!_userPlayerKey.ContainsKey(username))
+                    _userPlayerKey.Add(username, user);
                 else
                 {
                     Debug.LogWarning($"Trying to connect already connected user {name}");
-                    answer = 0;
+                    result = 1;
                     return false;
                 }
                 _connectedPlayersMap.Add(user);
                 _connectedPlayersList.Add(user);
                 // Enqueue immediately
                 _playerQueue.Enqueue(user);
-                Debug.Log($"Server: {name} connected succesefully, added to queue");
-                answer = 1;
+                Debug.Log($"Server: {username} connected succesefully, added to queue");
+                result = 0;
                 return true;
             }
             else
             {
                 if (user == null)
-                    answer = 2;
+                    result = 2;
                 else
-                    answer = 3;
+                    result = 3;
                 return false;
             }
         }
@@ -234,8 +270,24 @@ namespace Network
         #endregion
         // TODO: Add checks if user is able to call a method by checking if he is in session, etc.
         #region MethodsToCall
-        public string PlaceShip(string username, int[] location)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="username"></param>
+        /// <param name="location"></param>
+        /// <param name="result">
+        /// -1 = unexpected
+        /// 0 = everything is correct 
+        /// 5 = player not in session
+        /// </param>
+        /// <returns></returns>
+        public string PlaceShip(string username, int[] location, out int result)
         {
+                        if (!_userSessionKey.ContainsKey(username))
+            {
+                result = 5;
+                return $"Server: {username} is not in a session"; 
+            }
             var player = _userPlayerKey[username];
             var session = _userSessionKey[username];
             var outcome = _battleBehavior.PlaceShip(session, player, location);
@@ -247,36 +299,42 @@ namespace Network
                 case PlaceShipResult.Success:
                     {
                         // TODO: success logic
+                        result = 0;
                         //message = "SUCESS";
                         break;
                     }
 
                 case PlaceShipResult.OutOfBounds:
                     {
+                        result = 1;
                         // TODO: out of bounds logic
                         break;
                     }
 
                 case PlaceShipResult.CellOccupied:
                     {
+                        result = 2;
                         // TODO: cell occupied logic
                         break;
                     }
 
                 case PlaceShipResult.ShipNearby:
                     {
+                        result = 3;
                         // TODO: ship nearby logic
                         break;
                     }
 
                 case PlaceShipResult.ShipLimitReached:
                     {
+                        result = 4;
                         // TODO: ship limit reached logic
                         break;
                     }
 
                 default:
                     {
+                        result = -1;
                         // TODO: unexpected result logic
                         break;
                     }
@@ -285,8 +343,13 @@ namespace Network
             return message;
         }
 
-        public string PlaceMine(string username, int[] location)
+        public string PlaceMine(string username, int[] location, out int result)
         {
+            if (!_userSessionKey.ContainsKey(username))
+            {
+                result = 5;
+                return $"Server: {username} is not in a session"; 
+            }
             var player = _userPlayerKey[username];
             var session = _userSessionKey[username];
             var outcome = _battleBehavior.PlaceMine(session, player, location);
@@ -298,30 +361,35 @@ namespace Network
                 case PlaceMineResult.Success:
                     {
                         // TODO: success logic
+                        result = 0;
                         //message = "SUCESS";
                         break;
                     }
 
                 case PlaceMineResult.OutOfBounds:
                     {
+                        result = 1;
                         // TODO: out of bounds logic
                         break;
                     }
 
                 case PlaceMineResult.CellOccupied:
                     {
+                        result = 2;
                         // TODO: cell occupied logic
                         break;
                     }
 
                 case PlaceMineResult.MineLimitReached:
                     {
+                        result = 3;
                         // TODO: mine limit reached logic
                         break;
                     }
 
                 default:
                     {
+                         result = -1;
                         // TODO: unexpected result logic
                         break;
                     }

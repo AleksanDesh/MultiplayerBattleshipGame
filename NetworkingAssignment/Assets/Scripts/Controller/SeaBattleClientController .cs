@@ -2,6 +2,7 @@
 using Network;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 
@@ -13,6 +14,10 @@ namespace Controller
 
         [SerializeField] private TMP_InputField _username;
         [SerializeField] private TMP_InputField _password;
+
+        [Header("Inputs")]
+        [SerializeField] private TMP_InputField _xInput;
+        [SerializeField] private TMP_InputField _yInput;
         public string Username => _username.text;
 
         Client _networkClient;
@@ -38,18 +43,44 @@ namespace Controller
 
             Debug.Log($"SeaBattleClientController: Loging to the server" +
                 $" was {connected} with username {_username.text} and password {_password.text}");
+
+            if (connected)
+            {
+                // TODO: make the joining logic here
+                
+            }
         }
-        
-        public string PlaceShip(int x, int y)
+        public void BtnPlaceShip()
         {
-            return "Nothing here for now";
-            //return SendCommand(() => _server.PlaceShip(_username.text, new[] { x, y }));
+            if (!TryReadCoordinates(out var x, out var y))
+            {
+                Debug.LogWarning($"SeaBattleController: Invalid coodinates");
+                return;
+            }
+            PlaceShip(x, y);
         }
 
-        public string PlaceMine(int x, int y)
+        public async void PlaceShip(int x, int y)
+        {// TODO: Make the controller change the view, then wait for the result,
+         // and if the result is 0, do nothing, else, restore the previous position
+            int result = await _networkClient.PlaceShip(x, y, null);
+            
+        }
+
+        public void BtnPlaceMine()
         {
-            return "Nothing here for now";
-            //return SendCommand(() => _server.PlaceMine(_username.text, new[] { x, y }));
+            if (!TryReadCoordinates(out var x, out var y))
+            {
+                Debug.LogWarning($"SeaBattleController: Invalid coodinates");
+                return;
+            }
+            PlaceMine(x, y);
+        }
+        public async void PlaceMine(int x, int y)
+        {// TODO: Make the controller change the view, then wait for the result,
+         // and if the result is 0, do nothing, else, restore the previous position
+            int result = await _networkClient.PlaceMine(x, y);
+
         }
 
         public string Bomb(int x, int y)
@@ -95,6 +126,20 @@ namespace Controller
             //    return "SeaBattleClientController: Unexpected error.";
             //}
         }
+
+        #region Helpers
+        private bool TryReadCoordinates(out int x, out int y)
+        {
+            x = 0;
+            y = 0;
+
+            if (_xInput == null || _yInput == null)
+                return false;
+
+            return int.TryParse(_xInput.text, out x) &&
+                   int.TryParse(_yInput.text, out y);
+        }
+        #endregion
 
     }
 }

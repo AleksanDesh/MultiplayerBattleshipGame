@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 
 namespace Model
 {
-    class Ship
+    public class Ship
     {
         public readonly Vector2 position;
         public readonly int length;

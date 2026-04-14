@@ -1863,8 +1863,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::View.SeaBattleClientView
   _controller: {fileID: 953410054}
-  _xInput: {fileID: 1477243134}
-  _yInput: {fileID: 1870057378}
   _resultText: {fileID: 1450708723}
 --- !u!4 &297010922
 Transform:
@@ -2311,9 +2309,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 846717065}
-        m_TargetAssemblyTypeName: View.SeaBattleClientView, Assembly-CSharp
-        m_MethodName: OnPlaceShipClicked
+      - m_Target: {fileID: 1934442408}
+        m_TargetAssemblyTypeName: Controller.SeaBattleClientController, Assembly-CSharp
+        m_MethodName: BtnPlaceShip
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -4223,8 +4221,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::View.SeaBattleClientView
   _controller: {fileID: 1934442408}
-  _xInput: {fileID: 42529344}
-  _yInput: {fileID: 1822396168}
   _resultText: {fileID: 1122243209}
 --- !u!4 &846717066
 Transform:
@@ -4739,9 +4735,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 06db5a7a9d4e12a459f94d364274d781, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Controller.SeaBattleClientController
-  _server: {fileID: 1712926427}
   _username: {fileID: 857825965}
   _password: {fileID: 705906681}
+  _xInput: {fileID: 0}
+  _yInput: {fileID: 0}
 --- !u!4 &953410055
 Transform:
   m_ObjectHideFlags: 0
@@ -5826,9 +5823,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 846717065}
-        m_TargetAssemblyTypeName: View.SeaBattleClientView, Assembly-CSharp
-        m_MethodName: OnPlaceMineClicked
+      - m_Target: {fileID: 1934442408}
+        m_TargetAssemblyTypeName: Controller.SeaBattleClientController, Assembly-CSharp
+        m_MethodName: BtnPlaceMine
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -7368,6 +7365,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1712926428}
   - component: {fileID: 1712926427}
+  - component: {fileID: 1712926429}
   m_Layer: 0
   m_Name: Server
   m_TagString: Untagged
@@ -7402,6 +7400,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1712926429
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1712926426}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a10ef3f7e481cb49b2473990a2f3d10, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Network.Client
 --- !u!1 &1796456465
 GameObject:
   m_ObjectHideFlags: 0
@@ -8392,9 +8402,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 06db5a7a9d4e12a459f94d364274d781, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Controller.SeaBattleClientController
-  _server: {fileID: 1712926427}
   _username: {fileID: 377728065}
   _password: {fileID: 29895236}
+  _xInput: {fileID: 42529344}
+  _yInput: {fileID: 1822396168}
 --- !u!4 &1934442409
 Transform:
   m_ObjectHideFlags: 0
