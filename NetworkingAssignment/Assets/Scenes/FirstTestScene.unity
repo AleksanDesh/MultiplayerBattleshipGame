@@ -1795,6 +1795,7 @@ GameObject:
   m_Component:
   - component: {fileID: 272051180}
   - component: {fileID: 272051179}
+  - component: {fileID: 272051181}
   m_Layer: 0
   m_Name: NetworkManager
   m_TagString: Untagged
@@ -1833,6 +1834,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &272051181
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 272051178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8a10ef3f7e481cb49b2473990a2f3d10, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Network.Client
 --- !u!1 &297010920
 GameObject:
   m_ObjectHideFlags: 0
@@ -7365,14 +7378,13 @@ GameObject:
   m_Component:
   - component: {fileID: 1712926428}
   - component: {fileID: 1712926427}
-  - component: {fileID: 1712926429}
   m_Layer: 0
   m_Name: Server
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1712926427
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7380,7 +7392,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1712926426}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fa9c8ccee01f848489a09865e16f0dac, type: 3}
   m_Name: 
@@ -7400,18 +7412,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1712926429
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1712926426}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8a10ef3f7e481cb49b2473990a2f3d10, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Network.Client
 --- !u!1 &1796456465
 GameObject:
   m_ObjectHideFlags: 0
@@ -8201,7 +8201,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1898057493
 Transform:
   m_ObjectHideFlags: 0

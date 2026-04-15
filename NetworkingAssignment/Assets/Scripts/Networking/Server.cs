@@ -45,7 +45,7 @@ namespace Network
 
             // TODO: make the port auto adjustable
             int port = 5376;
-            Debug.Log("Starting server at " + port);
+            OSCLog.WriteLine("Starting server at " + port);
             _listener = new TcpListener(IPAddress.Any, port);
             _listener.Start();
 
@@ -66,7 +66,7 @@ namespace Network
                 TcpNetworkConnection connection = new TcpNetworkConnection(client);
                 _allConnections.Add(connection);
                 _unloggedConnections.Add(connection);
-                Debug.Log("Server: Adding new connection from " + connection.Remote);
+                OSCLog.WriteLine("Server: Adding new connection from " + connection.Remote);
             }
         }
         void UpdateConnections()
@@ -78,7 +78,7 @@ namespace Network
         void HandlePacket(byte[] packet, IPEndPoint remote)
         {
             OSCMessageIn mess = new OSCMessageIn(packet);
-            Debug.Log("Server: Message arrived to server: " + mess);
+            OSCLog.WriteLine("Server: Message arrived to server: " + mess);
 
             _dispatcher.HandlePacket(packet, remote);
         }
@@ -99,7 +99,7 @@ namespace Network
             if (_playerQueue.Count > 1)
             {
                 bool isSessionCreated = TryCreateSession();
-                if (isSessionCreated) Debug.Log($"Server: Session created succesefully");
+                if (isSessionCreated) OSCLog.WriteLine($"Server: Session created succesefully");
             }
         }
 
@@ -110,12 +110,15 @@ namespace Network
             _dispatcher.AddListener("/Login", ConnectionLoginRequest, OSCUtil.STRING, OSCUtil.STRING);
             _dispatcher.AddListener("/PlaceShip", ConnectionPlaceShipRequest, OSCUtil.INT, OSCUtil.INT);
             _dispatcher.AddListener("/PlaceMine", ConnectionPlaceMineRequest, OSCUtil.INT, OSCUtil.INT);
+            _dispatcher.AddListener("/Bomb", ConnectionBombRequest, OSCUtil.INT, OSCUtil.INT);
+            _dispatcher.AddListener("/MarkReady", ConnectionMarkReadyRequest);
+            //_dispatcher.AddListener("/PlaceMine", ConnectionPlaceMineRequest, OSCUtil.INT, OSCUtil.INT);
         }
         void ConnectionLoginRequest(OSCMessageIn message, IPEndPoint remote)
         {
             string username = message.ReadString();
             string password = message.ReadString();
-            Debug.Log($"Server: Received Login attempt with username {username} and password {password}");
+            OSCLog.WriteLine($"Server: Received Login attempt with username {username} and password {password}");
             bool sucess = TryUserLogin(username, password, out var result, out var playerData);
             foreach (var conn in _unloggedConnections)
             {
@@ -142,7 +145,7 @@ namespace Network
             TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
             var player = _tcpNetPlayerKey[connection];
             string debug = PlaceShip(player.Username, coordinates, out int result);
-            Debug.Log(debug);
+            OSCLog.WriteLine(debug);
             OSCMessageOut reply = new OSCMessageOut("/PlaceShip").AddInt(result);
             connection.Send(reply.GetBytes());
 
@@ -156,10 +159,31 @@ namespace Network
             TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
             var player = _tcpNetPlayerKey[connection];
             string debug = PlaceMine(player.Username, coordinates, out int result);
-            Debug.Log(debug);
+            OSCLog.WriteLine(debug);
             OSCMessageOut reply = new OSCMessageOut("/PlaceMine").AddInt(result);
             connection.Send(reply.GetBytes());
 
+        }
+
+        void ConnectionBombRequest(OSCMessageIn message, IPEndPoint remote)
+        {
+            int x = message.ReadInt();
+            int y = message.ReadInt();
+            int[] coordinates = new int[2] { x, y };
+            TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
+            var player = _tcpNetPlayerKey[connection];
+            string debug = Bomb(player.Username, coordinates, out int result);
+            OSCLog.WriteLine(debug);
+            OSCMessageOut reply = new OSCMessageOut("/Bomb").AddInt(result);
+            connection.Send(reply.GetBytes());
+        }
+
+        void ConnectionMarkReadyRequest(OSCMessageIn message, IPEndPoint remote)
+        {
+            TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
+            var player = _tcpNetPlayerKey[connection];
+            string debug = MarkReady(player.Username, out int result);
+            OSCLog.WriteLine(debug);
         }
         #endregion
 
@@ -188,7 +212,7 @@ namespace Network
                     _userPlayerKey.Add(username, user);
                 else
                 {
-                    Debug.LogWarning($"Trying to connect already connected user {name}");
+                    OSCLog.WriteLine($"Server: !!!! Trying to connect already connected user {name}");
                     result = 1;
                     return false;
                 }
@@ -196,7 +220,7 @@ namespace Network
                 _connectedPlayersList.Add(user);
                 // Enqueue immediately
                 _playerQueue.Enqueue(user);
-                Debug.Log($"Server: {username} connected succesefully, added to queue");
+                OSCLog.WriteLine($"Server: {username} connected succesefully, added to queue");
                 result = 0;
                 return true;
             }
@@ -223,14 +247,14 @@ namespace Network
                     _userPlayerKey.Add(name, user);
                 else
                 {
-                    Debug.LogWarning($"Trying to connect already connected user {name}");
+                    OSCLog.WriteLine($"Server: !!!! Trying to connect already connected user {name}");
                     return false;
                 }
                 _connectedPlayersMap.Add(user);
                 _connectedPlayersList.Add(user);
                 // Enqueue immediately
                 _playerQueue.Enqueue(user);
-                Debug.Log($"Server: {name} connected succesefully, added to queue");
+                OSCLog.WriteLine($"Server: {name} connected succesefully, added to queue");
                 return true;
             }
             else
@@ -254,9 +278,9 @@ namespace Network
             else
             {
                 if (_userSessionKey.ContainsKey(player1.Username))
-                    Debug.LogWarning($"Server: {player1.Username} already is in session, HOW are you creating another one?");
+                    OSCLog.WriteLine($"Server: !!!! {player1.Username} already is in session, HOW are you creating another one?");
                 if (_userSessionKey.ContainsKey(player2.Username))
-                    Debug.LogWarning($"Server: {player2.Username} already is in session, HOW are you creating another one?");
+                    OSCLog.WriteLine($"Server: !!!! {player2.Username} already is in session, HOW are you creating another one?");
 
                 // TODO: reinqueue both?
                 return false;
@@ -283,7 +307,7 @@ namespace Network
         /// <returns></returns>
         public string PlaceShip(string username, int[] location, out int result)
         {
-                        if (!_userSessionKey.ContainsKey(username))
+            if (!_userSessionKey.ContainsKey(username))
             {
                 result = 5;
                 return $"Server: {username} is not in a session"; 
@@ -342,7 +366,15 @@ namespace Network
 
             return message;
         }
-
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="username"></param>
+        /// <param name="location"></param>
+        /// <param name="result">
+        /// 0 = sucess
+        /// 1 = out of bounds</param>
+        /// <returns></returns>
         public string PlaceMine(string username, int[] location, out int result)
         {
             if (!_userSessionKey.ContainsKey(username))
@@ -397,9 +429,27 @@ namespace Network
 
             return message;
         }
-
-        public string Bomb(string username, int[] location)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="username"></param>
+        /// <param name="location"></param>
+        /// <param name="result">
+        /// 0 = sucess
+        /// 1 = out of bounds
+        /// 2 = already bombed
+        /// 3 = empty 
+        /// 4 = mine 
+        /// 5 = not in a session
+        /// 6 = victory </param>
+        /// <returns></returns>
+        public string Bomb(string username, int[] location, out int result)
         {
+            if (!_userSessionKey.ContainsKey(username))
+            {
+                result = 5;
+                return $"Server: {username} is not in a session";
+            }
             var player = _userPlayerKey[username];
             var session = _userSessionKey[username];
             var outcome = _battleBehavior.Bomb(session, player, location);
@@ -411,36 +461,42 @@ namespace Network
                 case BombingResult.Sucess:
                     {
                         // TODO: success logic
+                        result = 0;
                         //message = "SUCESS";
                         break;
                     }
 
                 case BombingResult.OutOfBounds:
                     {
+                        result = 1;
                         // TODO: out of bounds logic
                         break;
                     }
 
                 case BombingResult.AlreadyBombed:
                     {
+                        result = 2;
                         // TODO: already bombed logic
                         break;
                     }
 
                 case BombingResult.Empty:
                     {
+                        result = 3;
                         // TODO: empty cell logic
                         break;
                     }
 
                 case BombingResult.Mine:
                     {
+                        result = 4;
                         // TODO: mine hit logic
                         break;
                     }
 
                 case BombingResult.Victory:
                     {
+                        result = 6;
                         // TODO: victory logic, broadcast to everybody, that the caller won
                         _login.SaveAccount(player);
                         message = "YOU WON";
@@ -449,6 +505,7 @@ namespace Network
 
                 default:
                     {
+                        result = -1;
                         // TODO: unexpected result logic
                         break;
                     }
@@ -456,8 +513,17 @@ namespace Network
 
             return message;
         }
-
-        public string MarkReady(string username)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="username"></param>
+        /// <param name="result">
+        /// 0 = sucess
+        /// 1 = battle started
+        /// 2 = ship not placed
+        /// 3 = mines not placed</param>
+        /// <returns></returns>
+        public string MarkReady(string username, out int result)
         {
             var player = _userPlayerKey[username];
             var session = _userSessionKey[username];
@@ -469,6 +535,7 @@ namespace Network
             {
                 case MarkingResult.Success:
                     {
+                        result = 0;
                         // TODO: success logic
                         // tell the client to wait for the other player
                         message = $"Server: sucessefuly pressed Ready. Waiting for the other party...";
@@ -477,25 +544,30 @@ namespace Network
 
                 case MarkingResult.BattleStarted:
                     {
+                        result = 1;
                         // TODO: battle started logic
                         // send info to both, that the game has started
+                        // broadcast who's turn it is
                         break;
                     }
 
                 case MarkingResult.ShipsNotPlaced:
                     {
+                        result = 2;
                         // TODO: ships not placed logic
                         break;
                     }
 
                 case MarkingResult.MinesNotPlaced:
                     {
+                        result = 3;
                         // TODO: mines not placed logic
                         break;
                     }
 
                 default:
                     {
+                        result = -1;
                         // TODO: unexpected result logic
                         break;
                     }

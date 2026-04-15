@@ -63,6 +63,24 @@ namespace Network
             }
         }
 
+        public delegate void BombingEvent(int x, int y);
+        public event BombingEvent OnBombing;
+        private PendingBombing _pendingBombing;
+        private sealed class PendingBombing
+        {
+            public Location location { get; }
+            public TaskCompletionSource<int> Tcs { get; }
+            public PendingBombing(int x, int y)
+            {
+                location = new Location(x, y);
+                Tcs = new TaskCompletionSource<int>();
+            }
+        }
+
+        public delegate void MarkReadyEvent(int result);
+        public event MarkReadyEvent OnMarkReady;
+        public TaskCompletionSource<int> _tcsMarkReady;
+
 
 
 
@@ -153,6 +171,22 @@ namespace Network
             _connection.Send(message.GetBytes());
             return _pendingMinePlacement.Tcs.Task;
         }
+
+        public Task<int> Bomb(int x, int y)
+        {
+            _pendingBombing = new PendingBombing(x, y);
+            OSCMessageOut message = new OSCMessageOut("/Bomb").AddInt(x).AddInt(y);
+            _connection.Send(message.GetBytes());
+            return _pendingBombing.Tcs.Task;
+        }
+
+        public Task<int> MarkReady()
+        {
+            _tcsMarkReady = new TaskCompletionSource<int>();
+            OSCMessageOut message = new OSCMessageOut("/MarkReady");
+            _connection.Send(message.GetBytes());
+            return _tcsMarkReady.Task;
+        }
         #endregion
 
 
@@ -187,6 +221,8 @@ namespace Network
             _dispatcher.AddListener("/TryJoin", TryEnter, OSCUtil.INT);
             _dispatcher.AddListener("/PlaceShip", PlaceShip, OSCUtil.INT);
             _dispatcher.AddListener("/PlaceMine", PlaceMine, OSCUtil.INT);
+            _dispatcher.AddListener("/Bomb", Bomb, OSCUtil.INT);
+            _dispatcher.AddListener("/MarkReady", MarkReady, OSCUtil.INT);
         }
 
         /// <summary>
@@ -276,6 +312,28 @@ namespace Network
             // Else display an error
             // TODO.
             pending.Tcs?.TrySetResult(result);
+        }
+
+        void Bomb(OSCMessageIn message, IPEndPoint remote)
+        {
+            int result = message.ReadInt();
+            var pending = _pendingBombing;
+            _pendingBombing = null;
+
+            if (pending == null)
+                return;
+
+            if (result == 0)
+                OnBombing?.Invoke(pending.location.X, pending.location.Y);
+            pending.Tcs?.TrySetResult(result);
+        }
+
+        void MarkReady(OSCMessageIn message, IPEndPoint remote)
+        {
+            int result = message.ReadInt();
+            _tcsMarkReady?.TrySetResult(result);
+            _tcsMarkReady = null;
+            OnMarkReady?.Invoke(result);
         }
 
         #endregion

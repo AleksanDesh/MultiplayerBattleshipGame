@@ -83,16 +83,29 @@ namespace Controller
 
         }
 
-        public string Bomb(int x, int y)
+        public void BtnBomb()
         {
-            return "Nothing here for now";
-            //return SendCommand(() => _server.Bomb(_username.text, new[] { x, y }));
+            if (!TryReadCoordinates(out var x, out var y))
+            {
+                Debug.LogWarning($"SeaBattleController: Invalid coodinates");
+                return;
+            }
+            Bomb(x, y);
+        }
+        public async void Bomb(int x, int y)
+        {// TODO: Make the controller change the view, then wait for the result,
+         // and if the result is 0, do nothing, else, restore the previous position
+            int result = await _networkClient.Bomb(x, y);
         }
 
-        public string MarkReady()
+        public void BtnMarkReady()
         {
-            return "Nothing here for now";
-            //return SendCommand(() => _server.MarkReady(_username.text));
+            MarkReady();
+        }
+        public async void MarkReady()
+        {
+            int result = await _networkClient.MarkReady();
+
         }
 
         private string SendCommand(Func<string> command)
