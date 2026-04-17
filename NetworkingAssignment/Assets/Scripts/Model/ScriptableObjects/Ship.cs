@@ -8,6 +8,8 @@ namespace Model
     {
         [SerializeField, Range(1, 5)] private int _length = 1;
         [SerializeField] private bool _vertical;
+        [SerializeField] private Transform _grabPoint;
+        public Transform GrabPoint => _grabPoint;
 
         private Tile _tile;
         private readonly List<Vector2Int> _occupiedCells = new();
@@ -26,6 +28,11 @@ namespace Model
 
         public IReadOnlyList<Vector2Int> OccupiedCells => _occupiedCells;
 
+        void Awake()
+        {
+            if (_grabPoint == null)
+                _grabPoint = this.transform.Find("GrabPoint");
+        }
         public void BeginPickup()
         {
             _pickupPosition = transform.position;

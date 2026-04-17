@@ -14,7 +14,6 @@ public class GridPlacement : MonoBehaviour
 
     private SeaBattleClientController _controller;
     private Ship _draggedShip;
-    private Vector3 _dragOffset;
 
     private Vector3 _pickupPosition;
     private Quaternion _pickupRotation;
@@ -41,7 +40,21 @@ public class GridPlacement : MonoBehaviour
         if (Input.GetMouseButtonDown(1))
         {
             _draggedShip.Vertical = !_draggedShip.Vertical;
-            _draggedShip.transform.Rotate(0f, 90f, 0f, Space.World);
+
+            if (_draggedShip.Vertical)
+                _draggedShip.transform.Rotate(0f, -90f, 0f, Space.World);
+            else
+                _draggedShip.transform.Rotate(0f, 90f, 0f, Space.World);
+
+            // Realign after rotation
+            if (TryGetMouseWorldPoint(out var mouseWorld))
+            {
+                Vector3 target = mouseWorld;
+                target.y = _dragHeight;
+
+                Vector3 delta = _draggedShip.GrabPoint.position - _draggedShip.transform.position;
+                _draggedShip.transform.position = target - delta;
+            }
 
             _grid.ClearAllHighlight();
             _grid.ShowInvalidPlaces(_draggedShip);
@@ -68,10 +81,10 @@ public class GridPlacement : MonoBehaviour
         if (_pickupTile != null)
             _grid.ClearShip(ship);
 
-        if (TryGetMouseWorldPoint(out var mouseWorld))
-            _dragOffset = ship.transform.position - mouseWorld;
-        else
-            _dragOffset = Vector3.zero;
+        //if (TryGetMouseWorldPoint(out var mouseWorld))
+        //    _dragOffset = ship.transform.position - mouseWorld;
+        //else
+        //    _dragOffset = Vector3.zero;
     }
 
     private void UpdateDraggedShip()
@@ -79,9 +92,11 @@ public class GridPlacement : MonoBehaviour
         if (!TryGetMouseWorldPoint(out var mouseWorld))
             return;
 
-        Vector3 target = mouseWorld + _dragOffset;
+        Vector3 target = mouseWorld;
         target.y = _dragHeight;
-        _draggedShip.transform.position = target;
+
+        Vector3 delta = _draggedShip.GrabPoint.position - _draggedShip.transform.position;
+        _draggedShip.transform.position = target - delta;
     }
 
     private async void EndDrag()
@@ -107,6 +122,7 @@ public class GridPlacement : MonoBehaviour
             else
                 _draggedShip.ClearPlacement();
 
+            _draggedShip.Vertical = _pickupVertical;
             _draggedShip = null;
             _grid.ClearAllHighlight();
             return;
@@ -117,13 +133,14 @@ public class GridPlacement : MonoBehaviour
             targetTile.Coord.x,
             targetTile.Coord.y
         );
-
+        
         if (!serverAccepted)
         {
             _grid.ClearShip(_draggedShip);
-
+        
             _draggedShip.transform.SetPositionAndRotation(_pickupPosition, _pickupRotation);
-
+            _draggedShip.Vertical = _pickupVertical;
+        
             if (_pickupTile != null)
                 _grid.RestoreShip(_draggedShip, _pickupTile.Coord, _pickupVertical);
             else

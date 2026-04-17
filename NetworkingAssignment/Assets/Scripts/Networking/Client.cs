@@ -149,7 +149,7 @@ namespace Network
             _tcsLogin = new TaskCompletionSource<int>();
             //OSCMessageOut message = new OSCMessageOut("/MakeMove").AddInt(row).AddInt(col);
             OSCMessageOut message = new OSCMessageOut("/Login").AddString(username).AddString(password);
-            _connection.Send(message.GetBytes());
+            _connection?.Send(message.GetBytes());
             return _tcsLogin.Task;
         }
 
@@ -158,7 +158,7 @@ namespace Network
             _tcsRegister = new TaskCompletionSource<int>();
 
             OSCMessageOut message = new OSCMessageOut("/Register").AddString(username).AddString(password);
-            _connection.Send(message.GetBytes());
+            _connection?.Send(message.GetBytes());
             return _tcsRegister.Task;
         }
 
@@ -167,7 +167,7 @@ namespace Network
             _pendingShipPlacement = new PendingShipPlacement(x, y, ship);
             // TODO: Add different sized ship details
             OSCMessageOut message = new OSCMessageOut("/PlaceShip").AddInt(x).AddInt(y).AddInt(ship.Length).AddBool(ship.Vertical);
-            _connection.Send(message.GetBytes());
+            _connection?.Send(message.GetBytes());
             return _pendingShipPlacement.Tcs.Task;
         }
 
@@ -176,7 +176,7 @@ namespace Network
             _pendingMinePlacement = new PendingMinePlacement(x, y);
             // TODO: Add different sized ship details
             OSCMessageOut message = new OSCMessageOut("/PlaceMine").AddInt(x).AddInt(y);
-            _connection.Send(message.GetBytes());
+            _connection?.Send(message.GetBytes());
             return _pendingMinePlacement.Tcs.Task;
         }
 
@@ -184,7 +184,7 @@ namespace Network
         {
             _pendingBombing = new PendingBombing(x, y);
             OSCMessageOut message = new OSCMessageOut("/Bomb").AddInt(x).AddInt(y);
-            _connection.Send(message.GetBytes());
+            _connection?.Send(message.GetBytes());
             return _pendingBombing.Tcs.Task;
         }
 
@@ -192,7 +192,7 @@ namespace Network
         {
             _tcsMarkReady = new TaskCompletionSource<int>();
             OSCMessageOut message = new OSCMessageOut("/MarkReady");
-            _connection.Send(message.GetBytes());
+            _connection?.Send(message.GetBytes());
             return _tcsMarkReady.Task;
         }
 
@@ -200,7 +200,7 @@ namespace Network
         {
             _tcsEnqueue = new TaskCompletionSource<int>();
             OSCMessageOut message = new OSCMessageOut("/Enqueue");
-            _connection.Send(message.GetBytes());
+            _connection?.Send(message.GetBytes());
             return _tcsEnqueue.Task;
         }
         #endregion
