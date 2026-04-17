@@ -6,6 +6,8 @@ namespace Model
     [RequireComponent(typeof(Collider))]
     public sealed class Ship : MonoBehaviour
     {
+        private static int _idCounter = 0;
+        public int Id { get; private set; }
         [SerializeField, Range(1, 5)] private int _length = 1;
         [SerializeField] private bool _vertical;
         [SerializeField] private Transform _grabPoint;
@@ -32,6 +34,7 @@ namespace Model
         {
             if (_grabPoint == null)
                 _grabPoint = this.transform.Find("GrabPoint");
+            Id = ++_idCounter;
         }
         public void BeginPickup()
         {

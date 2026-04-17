@@ -99,7 +99,7 @@ namespace Network
             // TODO: Make ALL OF THEM CHECK IF THE INPUT IS VALID FOR THEM
             _dispatcher.AddListener("/Login", ConnectionLoginRequest, OSCUtil.STRING, OSCUtil.STRING);
             _dispatcher.AddListener("/Register", ConnectionRegisterRequest, OSCUtil.STRING, OSCUtil.STRING);
-            _dispatcher.AddListener("/PlaceShip", ConnectionPlaceShipRequest, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.BOOL);
+            _dispatcher.AddListener("/PlaceShip", ConnectionPlaceShipRequest, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.BOOL);
             _dispatcher.AddListener("/PlaceMine", ConnectionPlaceMineRequest, OSCUtil.INT, OSCUtil.INT);
             _dispatcher.AddListener("/Bomb", ConnectionBombRequest, OSCUtil.INT, OSCUtil.INT);
             _dispatcher.AddListener("/MarkReady", ConnectionMarkReadyRequest);
@@ -143,13 +143,14 @@ namespace Network
 
         void ConnectionPlaceShipRequest(OSCMessageIn message, IPEndPoint remote)
         {
-            if (message.ReadInt() is not int x 
+            if (message.ReadInt() is not int id
+                || message.ReadInt() is not int x 
                 || message.ReadInt() is not int y
                 || message.ReadInt() is not int len)
                 return;
             bool rot = message.ReadBool();
             Vector2 coordinates = new Vector2(x, y);
-            Ship ship = new Ship(coordinates, len, rot);
+            Ship ship = new Ship(coordinates, len, rot, id);
             TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
             var player = _tcpNetPlayerKey[connection];
             string debug = PlaceShip(player.Username, ship, out int result);

@@ -6,7 +6,7 @@ namespace Model
     internal class SeaBattleBehavior
     {
         public PlaceShipResult PlaceShip(SessionData session, PlayerData player, Ship ship)
-        {
+        {// TODO: check if this ship already exists
             if (session.Phase != SessionData.GamePhase.Preparation)
                 throw new InvalidOperationException("SeaBattleBehavior: Cannot place ships after battle has started.");
 
@@ -16,10 +16,33 @@ namespace Model
             var board = session.GetOwnBoard(player);
             var participant = session.GetParticipant(player);
 
+            // If the ship was placed earlier, allow it to be placed, else return
+            if (participant.PlacedShips >= session.MaxShips && !participant.Ships.ContainsKey(ship.Id))
+                return PlaceShipResult.ShipLimitReached;
+
             int x = (int)ship.position.X;
             int y = (int)ship.position.Y;
             int length = ship.length;
             bool rotated = ship.rotated;
+
+            // Clean cell data where the ship was located before it it existed on the board
+            if (participant.Ships.ContainsKey(ship.Id))
+            {
+                Ship previous = participant.Ships[ship.Id];
+                var previousCells = GetShipCells((int)previous.position.X, (int)previous.position.Y, previous.length, previous.rotated);
+                foreach (var cellPos in previousCells)
+                {
+                    int cx = cellPos.Item1;
+                    int cy = cellPos.Item2;
+
+                    if (cx < 0 || cy < 0 || cx >= board.Length || cy >= board.Length)
+                        throw new ArgumentOutOfRangeException("SeaBattleBehavior: " +
+                            "Ship was located outside of bounds. This should not be possible");
+
+                    if (board[cx][cy]._state == Cell.CellState.Ship)
+                        board[cx][cy]._state = Cell.CellState.Empty;
+                }
+            }
 
             var shipCells = GetShipCells(x, y, length, rotated);
 
@@ -57,16 +80,17 @@ namespace Model
                     }
                 }
             }
-
-            if (participant.PlacedShips >= session.MaxShips)
-                return PlaceShipResult.ShipLimitReached;
-
             foreach (var cellPos in shipCells)
             {
                 board[cellPos.Item1][cellPos.Item2]._state = Cell.CellState.Ship;
             }
+            // If the ship did exist, remove it and don't increment placed ships
+            if (participant.Ships.ContainsKey(ship.Id))
+                participant.Ships.Remove(ship.Id);
+            else // new ship placed => increment
+                participant.IncrementPlacedShips();
 
-            participant.IncrementPlacedShips();
+            participant.TryAddShip(ship);
             return PlaceShipResult.Success;
         }
         /// <summary>

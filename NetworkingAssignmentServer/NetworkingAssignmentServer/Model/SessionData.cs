@@ -156,11 +156,21 @@ namespace Model
         public uint PlacedMines => _placedMines;
         public bool IsReady { get; set; }
 
+        private Dictionary<int, Ship> _ships = new Dictionary<int, Ship>();
+        public Dictionary<int, Ship> Ships => _ships;
 
         public SessionParticipant(PlayerData player, PlayerSide side)
         {
             Player = player ?? throw new ArgumentNullException(nameof(player));
             Side = side;
+        }
+
+        public bool TryAddShip(Ship ship)
+        {
+            if (_ships.ContainsKey(ship.Id))
+                return false;
+            _ships.Add(ship.Id, ship);
+            return true;
         }
 
         public void IncrementPlacedShips(uint count = 1)
