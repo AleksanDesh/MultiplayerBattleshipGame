@@ -35,23 +35,25 @@ namespace Controller
                 Debug.LogError("SeaBattleClientController: _networkClient not found.");
 
         }
-
-        public async void Join()
+        #region ButtonMethods
+        bool IsJoiningRunning = false;
+        public void BtnJoin()
         {
-            //bool connecting = _server.ConnectUser(_username.text, _password.text);
-            bool connected = await _networkClient.Login(_username.text, _password.text);
-
-            Debug.Log($"SeaBattleClientController: Loging to the server" +
-                $" was {connected} with username {_username.text} and password {_password.text}");
-
-            if (connected)
-            {
-                // TODO: make the joining logic here
-                
-            }
+            if (IsJoiningRunning) return;
+            Join();
         }
+
+        bool IsRegisteringRunning = false;
+        public void BtnRegister()
+        {
+            if (IsRegisteringRunning) return;
+            Register();
+        }
+
+        bool IsPlaceShipRunning;
         public void BtnPlaceShip()
         {
+            if (IsPlaceShipRunning) return;
             if (!TryReadCoordinates(out var x, out var y))
             {
                 Debug.LogWarning($"SeaBattleController: Invalid coodinates");
@@ -60,15 +62,10 @@ namespace Controller
             PlaceShip(x, y);
         }
 
-        public async void PlaceShip(int x, int y)
-        {// TODO: Make the controller change the view, then wait for the result,
-         // and if the result is 0, do nothing, else, restore the previous position
-            int result = await _networkClient.PlaceShip(x, y, null);
-            
-        }
-
+        bool IsPlaceMineRunning = false;
         public void BtnPlaceMine()
         {
+            if (IsPlaceMineRunning) return;
             if (!TryReadCoordinates(out var x, out var y))
             {
                 Debug.LogWarning($"SeaBattleController: Invalid coodinates");
@@ -76,15 +73,11 @@ namespace Controller
             }
             PlaceMine(x, y);
         }
-        public async void PlaceMine(int x, int y)
-        {// TODO: Make the controller change the view, then wait for the result,
-         // and if the result is 0, do nothing, else, restore the previous position
-            int result = await _networkClient.PlaceMine(x, y);
 
-        }
-
+        bool IsBombRunning = false;
         public void BtnBomb()
         {
+            if (IsBombRunning) return;
             if (!TryReadCoordinates(out var x, out var y))
             {
                 Debug.LogWarning($"SeaBattleController: Invalid coodinates");
@@ -92,21 +85,140 @@ namespace Controller
             }
             Bomb(x, y);
         }
-        public async void Bomb(int x, int y)
-        {// TODO: Make the controller change the view, then wait for the result,
-         // and if the result is 0, do nothing, else, restore the previous position
-            int result = await _networkClient.Bomb(x, y);
-        }
 
+        bool IsMarkReadyRunning = false;
         public void BtnMarkReady()
         {
+            if (IsMarkReadyRunning) return;
             MarkReady();
         }
-        public async void MarkReady()
+        bool IsEnqueueRunning = false;
+        public void BtnEnqueue()
         {
-            int result = await _networkClient.MarkReady();
+            if (IsEnqueueRunning) return;
+            Enqueue();
+        }
+        #endregion
+
+        #region CalledButtonMethods
+
+        private async void Join()
+        {
+            IsJoiningRunning = true;
+            try
+            {
+                //bool connecting = _server.ConnectUser(_username.text, _password.text);
+                int connected = await _networkClient.Login(_username.text, _password.text);
+
+                Debug.Log($"SeaBattleClientController: Loging to the server" +
+                    $" was {connected == 0} with username {_username.text} and password {_password.text}");
+
+                if (connected == 0)
+                {
+                    // TODO: make the joining logic here
+
+                }
+            }
+            finally
+            {
+                IsJoiningRunning = false;
+            }
+        }
+        private async void Register()
+        {
+            IsJoiningRunning = true;
+            try
+            {
+                //bool connecting = _server.ConnectUser(_username.text, _password.text);
+                int connected = await _networkClient.Register(_username.text, _password.text);
+
+                Debug.Log($"SeaBattleClientController: Registering to the server" +
+                    $" was {connected == 0} with username {_username.text} and password {_password.text}");
+
+                if (connected == 0)
+                {
+                    // TODO: make the joining logic here
+
+                }
+            }
+            finally
+            {
+                IsJoiningRunning = false;
+            }
+        }
+        private async void PlaceShip(int x, int y)
+        {// TODO: Make the controller change the view, then wait for the result,
+         // and if the result is 0, do nothing, else, restore the previous position
+            IsPlaceShipRunning = true;
+
+            try
+            {
+                int result = await _networkClient.PlaceShip(x, y, null);
+            }
+            finally
+            {
+                IsPlaceShipRunning = false;
+            }
+        }
+        private async void PlaceMine(int x, int y)
+        {// TODO: Make the controller change the view, then wait for the result,
+         // and if the result is 0, do nothing, else, restore the previous position
+
+            IsPlaceMineRunning = true;
+            try
+            {
+                int result = await _networkClient.PlaceMine(x, y);
+            }
+            finally
+            {
+                IsPlaceMineRunning = false;
+            }
+        }
+        private async void Bomb(int x, int y)
+        {// TODO: Make the controller change the view, then wait for the result,
+         // and if the result is 0, do nothing, else, restore the previous position
+            IsBombRunning = true;
+            try
+            {
+                int result = await _networkClient.Bomb(x, y);
+                //Debug.Log($"Controller: The result of pressing Bomb is {result}");
+            }
+            finally
+            {
+                IsBombRunning = false;
+            }
+        }
+        private async void MarkReady()
+        {
+            IsMarkReadyRunning = true;
+            try
+            {
+                int result = await _networkClient.MarkReady();
+                //Debug.Log($"Controller: The result of pressing MarkReady is {result}");
+            }
+            finally
+            {
+                IsMarkReadyRunning = false;
+            }
+        }
+        public async void Enqueue()
+        {
+            IsEnqueueRunning = true;
+            try
+            {
+                int result = await _networkClient.Enqueue();
+                //Debug.Log($"Controller: The result of pressing Enqueue is {result}");
+            }
+            finally
+            {
+                IsEnqueueRunning = false;
+            }
 
         }
+        #endregion
+
+
+
 
         private string SendCommand(Func<string> command)
         {

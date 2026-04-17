@@ -51,13 +51,12 @@ namespace Model
                 throw new ArgumentException("Login password cannot be empty.", nameof(password));
             var players = _store.Load();
 
-            var existing = players.FirstOrDefault(p =>
+            playerData = players.FirstOrDefault(p =>
                 string.Equals(p.Username, username, StringComparison.OrdinalIgnoreCase));
-            playerData = null;
-            if (existing != null)
+
+            if (playerData != null)
             {
-                playerData = existing;
-                if (existing.Password != password)
+                if (playerData.Password != password)
                     return false;
 
                 return true;

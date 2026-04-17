@@ -97,6 +97,7 @@ namespace Network
         {
             // TODO: Make ALL OF THEM CHECK IF THE INPUT IS VALID FOR THEM
             _dispatcher.AddListener("/Login", ConnectionLoginRequest, OSCUtil.STRING, OSCUtil.STRING);
+            _dispatcher.AddListener("/Register", ConnectionRegisterRequest, OSCUtil.STRING, OSCUtil.STRING);
             _dispatcher.AddListener("/PlaceShip", ConnectionPlaceShipRequest, OSCUtil.INT, OSCUtil.INT);
             _dispatcher.AddListener("/PlaceMine", ConnectionPlaceMineRequest, OSCUtil.INT, OSCUtil.INT);
             _dispatcher.AddListener("/Bomb", ConnectionBombRequest, OSCUtil.INT, OSCUtil.INT);
@@ -125,6 +126,18 @@ namespace Network
                     break;
                 }
             }
+        }
+
+        void ConnectionRegisterRequest(OSCMessageIn message, IPEndPoint remote)
+        {
+            if (message.ReadString() is not string username || message.ReadString() is not string password)
+                return;
+
+            TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
+            OSCLog.WriteLine($"Server: Received Register attempt with username {username} and password {password}");
+            bool sucess = TryUserRegister(username, password, out var result, out PlayerData? playerData);
+            OSCMessageOut reply = new OSCMessageOut("/Register").AddInt(result);
+            connection.Send(reply.GetBytes());
         }
 
         void ConnectionPlaceShipRequest(OSCMessageIn message, IPEndPoint remote)
@@ -245,9 +258,18 @@ namespace Network
             }
         }
 
-        void UserRegister()
+        bool TryUserRegister(string username, string password, out int result, out PlayerData? playerData)
         {
+            result= -1;
+            bool sucess = _login.RegisterUser(username, password, out playerData);
 
+            if (sucess)
+            {
+                result = 0;
+                return true;
+            }
+
+            return false;
         }
         public bool ConnectUser(string name, string password)
         { // TODO: maybe add instant data sending with the leaderboards?

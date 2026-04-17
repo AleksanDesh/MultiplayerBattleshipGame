@@ -17,7 +17,8 @@ namespace Network
         OSCDispatcher _dispatcher;
 
         // Answer if the login was sucesseful
-        private TaskCompletionSource<bool> loginTcs;
+        private TaskCompletionSource<int> _tcsLogin;
+        private TaskCompletionSource<int> _tcsRegister;
 
         private sealed class Location
         {
@@ -143,18 +144,22 @@ namespace Network
         #region sendingMessages
 
 
-        public Task<bool> Login(string username, string password)
+        public Task<int> Login(string username, string password)
         {
-            loginTcs = new TaskCompletionSource<bool>();
+            _tcsLogin = new TaskCompletionSource<int>();
             //OSCMessageOut message = new OSCMessageOut("/MakeMove").AddInt(row).AddInt(col);
             OSCMessageOut message = new OSCMessageOut("/Login").AddString(username).AddString(password);
             _connection.Send(message.GetBytes());
-            return loginTcs.Task;
+            return _tcsLogin.Task;
         }
 
-        public void Register(string username, string password)
+        public Task<int> Register(string username, string password)
         {
+            _tcsRegister = new TaskCompletionSource<int>();
 
+            OSCMessageOut message = new OSCMessageOut("/Register").AddString(username).AddString(password);
+            _connection.Send(message.GetBytes());
+            return _tcsRegister.Task;
         }
 
         public Task<int> PlaceShip(int x, int y, Ship ship)
@@ -229,7 +234,8 @@ namespace Network
         void Initialize()
         {
             // Subscribe to methods.
-            _dispatcher.AddListener("/TryJoin", TryEnter, OSCUtil.INT);
+            _dispatcher.AddListener("/TryJoin", TryJoin, OSCUtil.INT);
+            _dispatcher.AddListener("/TryRegister", TryRegister, OSCUtil.INT);
             _dispatcher.AddListener("/PlaceShip", PlaceShip, OSCUtil.INT);
             _dispatcher.AddListener("/PlaceMine", PlaceMine, OSCUtil.INT);
             _dispatcher.AddListener("/Bomb", Bomb, OSCUtil.INT);
@@ -246,12 +252,11 @@ namespace Network
         /// </summary>
         /// <param name="message"></param>
         /// <param name="remote"></param>
-        void TryEnter(OSCMessageIn message, IPEndPoint remote)
+        void TryJoin(OSCMessageIn message, IPEndPoint remote)
         {
             int result = message.ReadInt();
-            bool success = result == 0;
-            loginTcs?.TrySetResult(success);
-            loginTcs = null;
+            _tcsLogin?.TrySetResult(result);
+            _tcsLogin = null;
             // For now no display of errors.
             // TODO: Add error message pop-up whenever something goes wrong
             switch (result)
@@ -280,6 +285,13 @@ namespace Network
                     }
 
             }
+        }
+
+        void TryRegister(OSCMessageIn message, IPEndPoint remote)
+        {
+            int result = message.ReadInt();
+            _tcsRegister?.TrySetResult(result);
+            _tcsRegister = null;
         }
 
         /// <summary>
