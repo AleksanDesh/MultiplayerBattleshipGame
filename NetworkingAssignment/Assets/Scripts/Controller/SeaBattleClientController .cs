@@ -21,6 +21,7 @@ namespace Controller
         public string Username => _username.text;
 
         Client _networkClient;
+        GridPlacement _shipPlacement;
 
         private void Awake()
         {
@@ -33,6 +34,8 @@ namespace Controller
                 _networkClient = FindFirstObjectByType<Client>();
             if (_networkClient == null)
                 Debug.LogError("SeaBattleClientController: _networkClient not found.");
+
+            _shipPlacement = FindFirstObjectByType<GridPlacement>();
 
         }
         #region ButtonMethods
@@ -217,40 +220,6 @@ namespace Controller
         }
         #endregion
 
-
-
-
-        private string SendCommand(Func<string> command)
-        {
-            return "Nothing here for now";
-            //if (_server == null)
-            //    return "SeaBattleClientController: Server is missing.";
-            //
-            //if (string.IsNullOrWhiteSpace(_username.text))
-            //    return "SeaBattleClientController: Username is not set.";
-            //
-            //try
-            //{
-            //    return command();
-            //}
-            //catch (KeyNotFoundException)
-            //{
-            //    return "SeaBattleClientController: User is not connected to a session.";
-            //}
-            //catch (InvalidOperationException ex)
-            //{
-            //    return ex.Message;
-            //}
-            //catch (ArgumentException ex)
-            //{
-            //    return ex.Message;
-            //}
-            //catch (Exception ex)
-            //{
-            //    Debug.LogException(ex);
-            //    return "SeaBattleClientController: Unexpected error.";
-            //}
-        }
 
         #region Helpers
         private bool TryReadCoordinates(out int x, out int y)

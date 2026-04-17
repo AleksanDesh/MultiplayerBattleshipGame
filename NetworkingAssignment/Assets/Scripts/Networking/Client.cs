@@ -11,7 +11,7 @@ using static UnityEngine.Rendering.DebugUI.Table;
 namespace Network
 {
     public class Client : MonoBehaviour
-    { // TODO: Add error displaying dictionary
+    { // TODO: Add error displaying dictionary + make it Singleton
         public IPAddress ServerIP = IPAddress.Loopback;
         TcpNetworkConnection _connection;
         OSCDispatcher _dispatcher;
@@ -205,25 +205,19 @@ namespace Network
         }
         #endregion
 
-
-        // Start is called once before the first execution of Update after the MonoBehaviour is created
-        void Start()
-        {
-
-        }
-
         // Update is called once per frame
         void Update()
         {
             // Check for incoming packets, and deal with them:
-            while (_connection.Available() > 0)
+            while (_connection != null && _connection.Available() > 0)
             {
                 HandlePacket(_connection.GetPacket(), _connection.Remote);
             }
             // TODO: disconnect handling
         }
 
-        // TODO: Make every method call the view error display, and send it the result if not 0, so it displays the error as a string
+        // TODO: Make every method call the view error display,
+        // and send it the result if not 0, so it displays the error as a string
         #region receivedMessages
         void HandlePacket(byte[] packet, IPEndPoint remote)
         {
