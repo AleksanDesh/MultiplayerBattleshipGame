@@ -3,6 +3,7 @@ using NetworkConnections;
 using OSCTools;
 using System.Net;
 using System.Net.Sockets;
+using System.Numerics;
 using static Model.SeaBattleBehavior;
 
 namespace Network
@@ -98,7 +99,7 @@ namespace Network
             // TODO: Make ALL OF THEM CHECK IF THE INPUT IS VALID FOR THEM
             _dispatcher.AddListener("/Login", ConnectionLoginRequest, OSCUtil.STRING, OSCUtil.STRING);
             _dispatcher.AddListener("/Register", ConnectionRegisterRequest, OSCUtil.STRING, OSCUtil.STRING);
-            _dispatcher.AddListener("/PlaceShip", ConnectionPlaceShipRequest, OSCUtil.INT, OSCUtil.INT);
+            _dispatcher.AddListener("/PlaceShip", ConnectionPlaceShipRequest, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.BOOL);
             _dispatcher.AddListener("/PlaceMine", ConnectionPlaceMineRequest, OSCUtil.INT, OSCUtil.INT);
             _dispatcher.AddListener("/Bomb", ConnectionBombRequest, OSCUtil.INT, OSCUtil.INT);
             _dispatcher.AddListener("/MarkReady", ConnectionMarkReadyRequest);
@@ -142,13 +143,16 @@ namespace Network
 
         void ConnectionPlaceShipRequest(OSCMessageIn message, IPEndPoint remote)
         {
-            if (message.ReadInt() is not int x || message.ReadInt() is not int y)
+            if (message.ReadInt() is not int x 
+                || message.ReadInt() is not int y
+                || message.ReadInt() is not int len)
                 return;
-
-            int[] coordinates = new int[2] { x, y };
+            bool rot = message.ReadBool();
+            Vector2 coordinates = new Vector2(x, y);
+            Ship ship = new Ship(coordinates, len, rot);
             TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
             var player = _tcpNetPlayerKey[connection];
-            string debug = PlaceShip(player.Username, coordinates, out int result);
+            string debug = PlaceShip(player.Username, ship, out int result);
             OSCLog.WriteLine(debug);
             OSCMessageOut reply = new OSCMessageOut("/PlaceShip").AddInt(result);
             connection.Send(reply.GetBytes());
@@ -243,7 +247,7 @@ namespace Network
                 _connectedPlayersMap.Add(user);
                 _connectedPlayersList.Add(user);
                 // Enqueue immediately
-                //_playerQueue.Enqueue(user);
+                _playerQueue.Enqueue(user);
                 OSCLog.WriteLine($"Server: {username} connected succesefully, added to queue");
                 result = 0;
                 return true;
@@ -338,7 +342,7 @@ namespace Network
         /// 5 = player not in session
         /// </param>
         /// <returns></returns>
-        public string PlaceShip(string username, int[] location, out int result)
+        public string PlaceShip(string username, Ship ship, out int result)
         {
             if (!_userSessionKey.ContainsKey(username))
             {
@@ -347,7 +351,7 @@ namespace Network
             }
             var player = _userPlayerKey[username];
             var session = _userSessionKey[username];
-            var outcome = _battleBehavior.PlaceShip(session, player, location);
+            var outcome = _battleBehavior.PlaceShip(session, player, ship);
 
             string message = $"Server: {username} " + outcome.ToString();
 

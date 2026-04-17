@@ -21,7 +21,7 @@ namespace Controller
         public string Username => _username.text;
 
         Client _networkClient;
-        GridPlacement _shipPlacement;
+        GridPlacement _gridPlacement;
 
         private void Awake()
         {
@@ -35,8 +35,13 @@ namespace Controller
             if (_networkClient == null)
                 Debug.LogError("SeaBattleClientController: _networkClient not found.");
 
-            _shipPlacement = FindFirstObjectByType<GridPlacement>();
+            _gridPlacement = FindFirstObjectByType<GridPlacement>();
 
+        }
+
+        private void Update()
+        {
+            _gridPlacement.UpdateDragging();
         }
         #region ButtonMethods
         bool IsJoiningRunning = false;
@@ -53,17 +58,7 @@ namespace Controller
             Register();
         }
 
-        bool IsPlaceShipRunning;
-        public void BtnPlaceShip()
-        {
-            if (IsPlaceShipRunning) return;
-            if (!TryReadCoordinates(out var x, out var y))
-            {
-                Debug.LogWarning($"SeaBattleController: Invalid coodinates");
-                return;
-            }
-            PlaceShip(x, y);
-        }
+        bool IsPlaceShipRunning = false;
 
         bool IsPlaceMineRunning = false;
         public void BtnPlaceMine()
@@ -149,14 +144,16 @@ namespace Controller
                 IsJoiningRunning = false;
             }
         }
-        private async void PlaceShip(int x, int y)
+        public async Task<bool> PlaceShip(Ship ship, int x, int y)
         {// TODO: Make the controller change the view, then wait for the result,
          // and if the result is 0, do nothing, else, restore the previous position
+            if (IsPlaceShipRunning) return false;
             IsPlaceShipRunning = true;
 
             try
             {
-                int result = await _networkClient.PlaceShip(x, y, null);
+                int result = await _networkClient.PlaceShip(x, y, ship);
+                return result == 0;
             }
             finally
             {

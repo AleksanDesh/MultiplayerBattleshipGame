@@ -1,6 +1,8 @@
+using Controller;
 using Model;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem.XR;
 
 public class GridPlacement : MonoBehaviour
 {
@@ -10,6 +12,7 @@ public class GridPlacement : MonoBehaviour
     [SerializeField] private LayerMask _shipMask = ~0;
     [SerializeField] private float _dragHeight = 0.5f;
 
+    private SeaBattleClientController _controller;
     private Ship _draggedShip;
     private Vector3 _dragOffset;
 
@@ -22,9 +25,10 @@ public class GridPlacement : MonoBehaviour
     {
         if (_camera == null)
             _camera = Camera.main;
+        _controller = FindFirstObjectByType<SeaBattleClientController>();
     }
 
-    private void Update()
+    public void UpdateDragging()
     {
         if (_draggedShip == null)
         {
@@ -80,15 +84,17 @@ public class GridPlacement : MonoBehaviour
         _draggedShip.transform.position = target;
     }
 
-    private void EndDrag()
+    private async void EndDrag()
     {
         if (_draggedShip == null)
             return;
 
         bool placed = false;
+        Tile targetTile = null;
 
         if (TryGetTileUnderPointer(out var tile))
         {
+            targetTile = tile;
             placed = _grid.TryPlaceShip(_draggedShip, tile.Coord, _draggedShip.Vertical);
         }
 
@@ -97,13 +103,31 @@ public class GridPlacement : MonoBehaviour
             _draggedShip.transform.SetPositionAndRotation(_pickupPosition, _pickupRotation);
 
             if (_pickupTile != null)
-            {
                 _grid.RestoreShip(_draggedShip, _pickupTile.Coord, _pickupVertical);
-            }
             else
-            {
                 _draggedShip.ClearPlacement();
-            }
+
+            _draggedShip = null;
+            _grid.ClearAllHighlight();
+            return;
+        }
+
+        bool serverAccepted = await _controller.PlaceShip(
+            _draggedShip,
+            targetTile.Coord.x,
+            targetTile.Coord.y
+        );
+
+        if (!serverAccepted)
+        {
+            _grid.ClearShip(_draggedShip);
+
+            _draggedShip.transform.SetPositionAndRotation(_pickupPosition, _pickupRotation);
+
+            if (_pickupTile != null)
+                _grid.RestoreShip(_draggedShip, _pickupTile.Coord, _pickupVertical);
+            else
+                _draggedShip.ClearPlacement();
         }
 
         _draggedShip = null;

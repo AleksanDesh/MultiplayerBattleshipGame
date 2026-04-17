@@ -70,7 +70,7 @@ public class GridManager : MonoBehaviour
     {
         foreach (Ship ship in _placedShips)
         {
-            if (ship != movedShip)
+            if (ship != movedShip && ship.Tile != null)
                 EncolorShipBoundaries(ship);
         }
     }

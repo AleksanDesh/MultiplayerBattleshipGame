@@ -5,50 +5,94 @@ namespace Model
 {
     internal class SeaBattleBehavior
     {
-        public PlaceShipResult PlaceShip(SessionData session, PlayerData player, int[] location)
+        public PlaceShipResult PlaceShip(SessionData session, PlayerData player, Ship ship)
         {
             if (session.Phase != SessionData.GamePhase.Preparation)
                 throw new InvalidOperationException("SeaBattleBehavior: Cannot place ships after battle has started.");
 
-            if (location == null || location.Length < 2)
-                throw new ArgumentException("SeaBattleBehavior: Invalid location.", nameof(location));
+            if (ship == null)
+                throw new ArgumentNullException(nameof(ship));
 
             var board = session.GetOwnBoard(player);
             var participant = session.GetParticipant(player);
 
-            int x = location[0];
-            int y = location[1];
+            int x = (int)ship.position.X;
+            int y = (int)ship.position.Y;
+            int length = ship.length;
+            bool rotated = ship.rotated;
 
-            if (x < 0 || y < 0 || x >= board.Length || y >= board.Length)
-                return PlaceShipResult.OutOfBounds;
+            var shipCells = GetShipCells(x, y, length, rotated);
 
-            var cell = board[x][y];
+            // Check if the cells are availible
+            foreach (var cellPos in shipCells)
+            {
+                int cx = cellPos.Item1;
+                int cy = cellPos.Item2;
 
-            if (cell._state != Cell.CellState.Empty)
-                return PlaceShipResult.CellOccupied;
+                if (cx < 0 || cy < 0 || cx >= board.Length || cy >= board.Length)
+                    return PlaceShipResult.OutOfBounds;
 
-            // TODO: add different sized ships
-            //System.Numerics.Vector2 pos = new System.Numerics.Vector2(2, 2);
-            //Ship debug = new Ship(pos, 3, false);
-            //if (false)
-            //    for (int l = -debug.length / 2; l < debug.length
-            //        ; l++)
+                if (board[cx][cy]._state != Cell.CellState.Empty)
+                    return PlaceShipResult.CellOccupied;
+            }
 
+            // Check if the surrounding cells are occupied
+            foreach (var cellPos in shipCells)
+            {
+                int cx = cellPos.Item1;
+                int cy = cellPos.Item2;
 
-            for (int i = -1; i < 2; i++)
-                for (int j = -1; j < 2; j++)
-                    if ((x + i >= 0) && (y + j >= 0) 
-                        && (x + i < board.Length) && (y + j < board.Length)
-                        && board[x + i][y + j]._state == Cell.CellState.Ship)
-                        return PlaceShipResult.ShipNearby;
+                for (int i = -1; i < 2; i++)
+                {
+                    for (int j = -1; j < 2; j++)
+                    {
+                        int nx = cx + i;
+                        int ny = cy + j;
+
+                        if (nx < 0 || ny < 0 || nx >= board.Length || ny >= board.Length)
+                            continue;
+
+                        if (!shipCells.Contains((nx, ny)) && board[nx][ny]._state == Cell.CellState.Ship)
+                            return PlaceShipResult.ShipNearby;
+                    }
+                }
+            }
 
             if (participant.PlacedShips >= session.MaxShips)
                 return PlaceShipResult.ShipLimitReached;
 
-            cell._state = Cell.CellState.Ship;
-            participant.IncrementPlacedShips();
+            foreach (var cellPos in shipCells)
+            {
+                board[cellPos.Item1][cellPos.Item2]._state = Cell.CellState.Ship;
+            }
 
+            participant.IncrementPlacedShips();
             return PlaceShipResult.Success;
+        }
+        /// <summary>
+        /// Helper to get cells on which the ship is placed
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <param name="length"></param>
+        /// <param name="rotated"></param>
+        /// <returns></returns>
+        private static List<(int, int)> GetShipCells(int x, int y, int length, bool rotated)
+        {
+            var cells = new List<(int, int)>(length);
+
+            int startOffset = -(length / 2);
+
+            for (int i = 0; i < length; i++)
+            {
+                int offset = startOffset + i;
+                int cx = rotated ? x : x + offset;
+                int cy = rotated ? y + offset : y;
+
+                cells.Add((cx, cy));
+            }
+
+            return cells;
         }
 
         public PlaceMineResult PlaceMine(SessionData session, PlayerData player, int[] location)

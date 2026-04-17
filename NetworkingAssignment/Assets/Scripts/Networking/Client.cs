@@ -166,7 +166,7 @@ namespace Network
         {
             _pendingShipPlacement = new PendingShipPlacement(x, y, ship);
             // TODO: Add different sized ship details
-            OSCMessageOut message = new OSCMessageOut("/PlaceShip").AddInt(x).AddInt(y);
+            OSCMessageOut message = new OSCMessageOut("/PlaceShip").AddInt(x).AddInt(y).AddInt(ship.Length).AddBool(ship.Vertical);
             _connection.Send(message.GetBytes());
             return _pendingShipPlacement.Tcs.Task;
         }
