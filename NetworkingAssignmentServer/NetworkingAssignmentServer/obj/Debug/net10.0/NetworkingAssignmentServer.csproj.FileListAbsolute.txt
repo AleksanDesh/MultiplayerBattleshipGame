@@ -13,3 +13,6 @@ C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssign
 C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\NetworkingAssignmentServer.pdb
 C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\NetworkingAssignmentServer.genruntimeconfig.cache
 C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\ref\NetworkingAssignmentServer.dll
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\bin\Debug\net10.0\Newtonsoft.Json.dll
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\NetworkingAssignmentServer.csproj.AssemblyReference.cache
+C:\Uni\Fork\NetworkingAssignmentFull\NetworkingAssignmentServer\NetworkingAssignmentServer\obj\Debug\net10.0\Networki.265B542E.Up2Date

@@ -1,6 +1,7 @@
 using Model;
 using NetworkConnections;
 using OSCTools;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -317,7 +318,9 @@ namespace Network
             var outcome = _battleBehavior.PlaceShip(session, player, location);
 
             string message = $"Server: {username} " + outcome.ToString();
-            
+
+            result = (int)outcome;
+
             switch (outcome)
             {
                 case PlaceShipResult.Success:

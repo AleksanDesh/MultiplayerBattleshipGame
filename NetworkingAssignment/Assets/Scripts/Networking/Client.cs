@@ -81,6 +81,9 @@ namespace Network
         public event MarkReadyEvent OnMarkReady;
         public TaskCompletionSource<int> _tcsMarkReady;
 
+        public delegate void EnqueueEvent(int result);
+        public event EnqueueEvent OnEnqueue;
+        public TaskCompletionSource<int> _tcsEnqueue;
 
 
 
@@ -187,6 +190,14 @@ namespace Network
             _connection.Send(message.GetBytes());
             return _tcsMarkReady.Task;
         }
+
+        public Task<int> Enqueue()
+        {
+            _tcsEnqueue = new TaskCompletionSource<int>();
+            OSCMessageOut message = new OSCMessageOut("/Enqueue");
+            _connection.Send(message.GetBytes());
+            return _tcsEnqueue.Task;
+        }
         #endregion
 
 
@@ -223,6 +234,7 @@ namespace Network
             _dispatcher.AddListener("/PlaceMine", PlaceMine, OSCUtil.INT);
             _dispatcher.AddListener("/Bomb", Bomb, OSCUtil.INT);
             _dispatcher.AddListener("/MarkReady", MarkReady, OSCUtil.INT);
+            _dispatcher.AddListener("/Enqueue", Enqueue, OSCUtil.INT);
         }
 
         /// <summary>
@@ -334,6 +346,14 @@ namespace Network
             _tcsMarkReady?.TrySetResult(result);
             _tcsMarkReady = null;
             OnMarkReady?.Invoke(result);
+        }
+
+        void Enqueue(OSCMessageIn message, IPEndPoint remote)
+        {
+            int result = message.ReadInt();
+            _tcsEnqueue?.TrySetResult(result);
+            _tcsEnqueue = null;
+            OnEnqueue?.Invoke(result);
         }
 
         #endregion

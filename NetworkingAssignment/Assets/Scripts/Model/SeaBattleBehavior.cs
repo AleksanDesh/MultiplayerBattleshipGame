@@ -177,7 +177,7 @@ namespace Model
 
         internal enum PlaceShipResult
         {
-            Success,
+            Success = 1,
             OutOfBounds,
             CellOccupied,
             ShipNearby,

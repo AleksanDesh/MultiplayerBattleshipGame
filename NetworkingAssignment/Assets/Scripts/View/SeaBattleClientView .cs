@@ -64,7 +64,7 @@ namespace View
                 return;
             }
 
-            ShowResult(_controller.MarkReady());
+            //ShowResult(_controller.MarkReady());
         }
 
         //private string CallWithCoordinates(System.Func<int, int, string> action)
