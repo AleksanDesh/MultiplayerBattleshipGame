@@ -26,6 +26,7 @@ namespace Network
         Dictionary<string, SessionData> _userSessionKey = new Dictionary<string, SessionData>();
         Dictionary<string, PlayerData> _userPlayerKey = new Dictionary<string, PlayerData>();
         Dictionary<TcpNetworkConnection, PlayerData> _tcpNetPlayerKey = new Dictionary<TcpNetworkConnection, PlayerData>();
+        Dictionary<string, TcpNetworkConnection> _userTcpKey = new Dictionary<string, TcpNetworkConnection>();
         Dictionary<IPEndPoint, TcpNetworkConnection> _ipEndToTcpNetKey = new Dictionary<IPEndPoint, TcpNetworkConnection>();
 
 
@@ -119,6 +120,7 @@ namespace Network
                     if (sucess && playerData != null)
                     {
                         _tcpNetPlayerKey.Add(conn, playerData);
+                        _userTcpKey.Add(playerData.Username, conn);
                         _ipEndToTcpNetKey.Add(remote, conn);
                         _unloggedConnections.Remove(conn);
                     }
@@ -196,8 +198,19 @@ namespace Network
             OSCLog.WriteLine(debug);
             OSCMessageOut reply = new OSCMessageOut("/MarkReady").AddInt(result);
             connection.Send(reply.GetBytes());
-        }
+            if (result == 1)
+            {
+                // TODO: Broadcast the start
+                var session = _userSessionKey[player.Username];
+                var enemyPlayer = session.GetEnemyParticipant(player).Player;
+                var enemyConnection = _userTcpKey[enemyPlayer.Username];
 
+            }
+        }
+        // We receive name, the oponent's victories coumt, ship preset (or game preset)
+        // (2, 3, 4 etc. ships on the board allowed. Each number has a prefab of ships included),
+        // mines to place
+        // board size
         void ConnectionEnqueueRequest(OSCMessageIn message, IPEndPoint remote)
         {
             int result = -1;
@@ -248,8 +261,8 @@ namespace Network
                 _connectedPlayersMap.Add(user);
                 _connectedPlayersList.Add(user);
                 // Enqueue immediately
-                _playerQueue.Enqueue(user);
-                OSCLog.WriteLine($"Server: {username} connected succesefully, added to queue");
+                //_playerQueue.Enqueue(user);
+                OSCLog.WriteLine($"Server: {username} connected succesefully");
                 result = 0;
                 return true;
             }
@@ -301,10 +314,10 @@ namespace Network
 
         bool TryCreateSession()
         {
-            PlayerData player1 = _playerQueue.Dequeue();
-            PlayerData player2 = _playerQueue.Dequeue();
+            PlayerData player1 = _playerQueue.Dequeue(); // First player
+            PlayerData player2 = _playerQueue.Dequeue(); // Second player
             // Run some checks... (which we won't do for now)
-            SessionData newSession = new SessionData(player1, player2, 2, 1);
+            SessionData newSession = new SessionData(player1, player2, 3, 0);
             if (newSession == null)
                 return false;
 
@@ -325,7 +338,21 @@ namespace Network
             }
             _sessionDatas.Add(newSession);
 
+
+
             // TODO: send info to both players about who they play against, which involves their victories as well
+            var player1Connection = _userTcpKey[player1.Username];
+            var player2Connection = _userTcpKey[player2.Username];
+            // This is for starting the battle. Broadcast
+            OSCMessageOut player1Info = 
+                new OSCMessageOut("/StartBattle").AddString(player2.Username).AddInt(player2.TopScore)
+                .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length);
+            OSCMessageOut player2Info = 
+                new OSCMessageOut("/StartBattle").AddString(player1.Username).AddInt(player1.TopScore)
+                .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length);
+            
+            player1Connection.Send(player1Info.GetBytes());
+            player2Connection.Send(player2Info.GetBytes());
             return true;
         }
 
@@ -604,7 +631,12 @@ namespace Network
                         // TODO: mines not placed logic
                         break;
                     }
-
+                case MarkingResult.AlreadyMarked:
+                    {
+                        result = 4;
+                        // Already marked
+                        break;
+                    }
                 default:
                     {
                         result = -1;

@@ -18,7 +18,7 @@ public class Tile : MonoBehaviour
     private bool _occupied;
     private bool _highlighted;
     public bool Highlighted => _highlighted;
-    private bool _previewActive;
+    private bool _previewActive = true;
     public Vector2Int Coord { get; private set; }
     public bool IsOccupied => _occupied;
 
@@ -40,6 +40,7 @@ public class Tile : MonoBehaviour
         _occupied = value;
         _previewActive = false;
         SetColor(_occupied ? _occupiedColor : _originalColor);
+        SetPreview(value);
     }
 
     public void Highlight(bool value)

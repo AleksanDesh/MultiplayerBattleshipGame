@@ -8,6 +8,7 @@ using UnityEngine;
 
 namespace Controller
 {
+    [DefaultExecutionOrder(-200)]
     internal sealed class SeaBattleClientController : MonoBehaviour
     {
         //[SerializeField] private Server _server;
@@ -21,6 +22,7 @@ namespace Controller
         public string Username => _username.text;
 
         Client _networkClient;
+        public Client NetworkClient => _networkClient;
         GridPlacement _gridPlacement;
 
         private void Awake()

@@ -219,6 +219,9 @@ namespace Model
         public MarkingResult MarkReady(SessionData session, PlayerData player)
         {
             var participant = session.GetParticipant(player);
+            if (participant.IsReady)
+                return MarkingResult.AlreadyMarked;
+
             if (participant.PlacedShips != session.MaxShips)
                 return MarkingResult.ShipsNotPlaced;
             if (participant.PlacedMines != session.MaxMines)
@@ -273,7 +276,8 @@ namespace Model
             Success,
             BattleStarted,
             ShipsNotPlaced,
-            MinesNotPlaced
+            MinesNotPlaced,
+            AlreadyMarked
         }
     }
 }

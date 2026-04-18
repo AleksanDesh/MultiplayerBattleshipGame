@@ -86,36 +86,30 @@ namespace Network
         public event EnqueueEvent OnEnqueue;
         public TaskCompletionSource<int> _tcsEnqueue;
 
+        public delegate void BattleStarted(BattleStartPckg package);
+        public event BattleStarted OnBattleStarted;
+        public struct BattleStartPckg
+        {
+            string enemyUsername;
+            public string EnemyUsername => enemyUsername;
+            int enemyVictories;
+            public int EnemyVictories => enemyVictories;
+            int shipPreset;
+            public int ShipPreset => shipPreset;
+            int minesAllowed;
+            public int MinesAllowed => minesAllowed;
+            int boardSize;
+            public int BoardSize => boardSize; 
 
-
-        // ----- TicTacToe client things:
-
-        // Views subscribe here, on any client:
-        //public delegate void CellChangeEvent(int row, int col, int value);
-        //public event CellChangeEvent OnCellChange;
-
-        //public delegate void ActivePlayerChangeEvent(int activePlayer);
-        //public event ActivePlayerChangeEvent OnActivePlayerChange;
-
-        //public event System.Action<int> OnPlayerInfoReceived;
-
-        //public delegate void GameOverEvent(int winner);
-        //public event GameOverEvent OnGameOver;
-
-        //void Start()
-        //{
-        //    TcpClient client = new TcpClient();
-        //    client.Connect(new IPEndPoint(ServerIP, 50006));
-        //    connection = new TcpNetworkConnection(client);
-        //    // TODO: error handling
-
-        //    Debug.Log("Starting client, connecting to " + ServerIP);
-
-        //    // Initialize the dispatcher and callbacks for incoming OSC messages:
-        //    dispatcher = new OSCDispatcher();
-        //    dispatcher.ShowIncomingMessages = true;
-        //    Initialize();
-        //}
+            public BattleStartPckg(string enemyUsername, int enemyVictories, int shipPreset, int minesAllowed, int boardSize) : this()
+            {
+                this.enemyUsername = enemyUsername;
+                this.enemyVictories = enemyVictories;
+                this.shipPreset = shipPreset;
+                this.minesAllowed = minesAllowed;
+                this.boardSize = boardSize;
+            }
+        }
         void Awake()
         {
             Connect();
@@ -235,6 +229,11 @@ namespace Network
             _dispatcher.AddListener("/Bomb", Bomb, OSCUtil.INT);
             _dispatcher.AddListener("/MarkReady", MarkReady, OSCUtil.INT);
             _dispatcher.AddListener("/Enqueue", Enqueue, OSCUtil.INT);
+            // We receive name, the oponent's victories coumt, ship preset (or game preset)
+            // (2, 3, 4 etc. ships on the board allowed. Each number has a prefab of ships included),
+            // mines to place
+            // board size
+            _dispatcher.AddListener("/StartBattle", StartBattle, OSCUtil.STRING, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT);
         }
 
         /// <summary>
@@ -362,6 +361,16 @@ namespace Network
             OnEnqueue?.Invoke(result);
         }
 
+        void StartBattle(OSCMessageIn message, IPEndPoint remote)
+        {
+            string enemyUsername = message.ReadString();
+            int enemyVictories = message.ReadInt();
+            int shipPreset = message.ReadInt();
+            int minesAllowed = message.ReadInt();
+            int boardSize = message.ReadInt();
+            BattleStartPckg package = new BattleStartPckg(enemyUsername, enemyVictories, shipPreset, minesAllowed, boardSize);
+            OnBattleStarted?.Invoke(package);
+        }
         #endregion
     }
 }

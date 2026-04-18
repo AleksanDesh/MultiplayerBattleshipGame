@@ -20,6 +20,8 @@ public class GridPlacement : MonoBehaviour
     private Tile _pickupTile;
     private bool _pickupVertical;
 
+    private bool _dragEnabled = true;
+
     private void Awake()
     {
         if (_camera == null)
@@ -29,6 +31,7 @@ public class GridPlacement : MonoBehaviour
 
     public void UpdateDragging()
     {
+        if (!_dragEnabled) return;
         if (_draggedShip == null)
         {
             if (Input.GetMouseButtonDown(0) && TryGetShipUnderPointer(out var ship))

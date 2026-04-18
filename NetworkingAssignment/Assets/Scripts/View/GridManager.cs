@@ -6,15 +6,22 @@ using UnityEngine.Tilemaps;
 
 public class GridManager : MonoBehaviour
 {
-    public int _with, _height;
+    public int _width, _height;
 
     [SerializeField] private GameObject _tilePrefab;
 
     Dictionary<Vector2Int, Tile> _locTileKey = new Dictionary<Vector2Int, Tile>();
     HashSet<Ship> _placedShips = new HashSet<Ship>();
 
-    private void Start()
+    //private void Start()
+    //{
+    //    GenerateGrid();
+    //}
+
+    public void StartBattle(int width, int height)
     {
+        _width = width;
+        _height = height;
         GenerateGrid();
     }
     void GenerateGrid()
@@ -22,7 +29,7 @@ public class GridManager : MonoBehaviour
         DestroyAllTiles();
         for (int x = 0; x < _height; x++)
         {
-            for (int y = 0; y < _with; y++)
+            for (int y = 0; y < _width; y++)
             {
                 var spawnedObject = Instantiate(_tilePrefab, new Vector3(x, 0, y), Quaternion.identity, this.transform);
                 spawnedObject.name = $"Tile {x} {y}";
@@ -178,6 +185,12 @@ public class GridManager : MonoBehaviour
     {
         foreach (var tile in _locTileKey.Values)
             tile.SetPreview(false);
+    }
+
+    public void EnableAllPreview()
+    {
+        foreach (var tile in _locTileKey.Values)
+            tile.SetPreview(true);
     }
 
     public void ClearAllHighlight()
