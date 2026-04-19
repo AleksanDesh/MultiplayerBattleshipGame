@@ -12,11 +12,11 @@ public class GridManager : MonoBehaviour
 
     Dictionary<Vector2Int, Tile> _locTileKey = new Dictionary<Vector2Int, Tile>();
     HashSet<Ship> _placedShips = new HashSet<Ship>();
-
-    //private void Start()
-    //{
-    //    GenerateGrid();
-    //}
+    public bool GenerateRegardless;
+    private void Start()
+    {
+        if (GenerateRegardless) StartBattle(8,8);
+    }
 
     public void StartBattle(int width, int height)
     {
@@ -181,16 +181,10 @@ public class GridManager : MonoBehaviour
         TryPlaceShip(ship, origin, vertical);
     }
 
-    public void ClearAllPreview()
+    public void SetPreview(bool var)
     {
         foreach (var tile in _locTileKey.Values)
-            tile.SetPreview(false);
-    }
-
-    public void EnableAllPreview()
-    {
-        foreach (var tile in _locTileKey.Values)
-            tile.SetPreview(true);
+            tile.SetPreview(var);
     }
 
     public void ClearAllHighlight()

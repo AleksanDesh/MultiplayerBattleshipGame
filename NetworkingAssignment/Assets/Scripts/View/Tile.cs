@@ -38,9 +38,9 @@ public class Tile : MonoBehaviour
     public void SetOccupied(bool value)
     {
         _occupied = value;
-        _previewActive = false;
-        SetColor(_occupied ? _occupiedColor : _originalColor);
-        SetPreview(value);
+        Debug.Log($"Setting tile {name} to be occupied {_occupied}, with preview being {_previewActive}");
+        Color newCol = _occupied ? _occupiedColor : _originalColor;
+        SetColor(newCol);
     }
 
     public void Highlight(bool value)
@@ -53,25 +53,24 @@ public class Tile : MonoBehaviour
     public void SetPreview(bool valid)
     {
         _previewActive = valid;
-        if (!_previewActive)
-            SetColor(_originalColor);
     }
 
 
     private void OnMouseEnter()
     {
-        if (_previewActive)
+        if (_previewActive && !_occupied)
             SetColor(_selectedColor);
     }
 
     private void OnMouseExit()
     {
-        if (_previewActive)
+        if (_previewActive && !_occupied)
             SetColor(_originalColor);
     }
 
     private void SetColor(Color color)
     {
+        //Debug.Log($"Setting color of {name} to {color}");
         _renderer.GetPropertyBlock(_mpb);
 
         _mpb.SetColor(BaseColorId, color);

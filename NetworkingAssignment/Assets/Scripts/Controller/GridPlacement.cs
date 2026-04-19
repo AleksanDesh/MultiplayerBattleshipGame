@@ -11,7 +11,7 @@ public class GridPlacement : MonoBehaviour
     [SerializeField] private LayerMask _tileMask = ~0;
     [SerializeField] private LayerMask _shipMask = ~0;
     [SerializeField] private float _dragHeight = 0.5f;
-
+    public bool IgnoreServer;
     private SeaBattleClientController _controller;
     private Ship _draggedShip;
 
@@ -40,29 +40,6 @@ public class GridPlacement : MonoBehaviour
             return;
         }
 
-        if (Input.GetMouseButtonDown(1))
-        {
-            _draggedShip.Vertical = !_draggedShip.Vertical;
-
-            if (_draggedShip.Vertical)
-                _draggedShip.transform.Rotate(0f, -90f, 0f, Space.World);
-            else
-                _draggedShip.transform.Rotate(0f, 90f, 0f, Space.World);
-
-            // Realign after rotation
-            if (TryGetMouseWorldPoint(out var mouseWorld))
-            {
-                Vector3 target = mouseWorld;
-                target.y = _dragHeight;
-
-                Vector3 delta = _draggedShip.GrabPoint.position - _draggedShip.transform.position;
-                _draggedShip.transform.position = target - delta;
-            }
-
-            _grid.ClearAllHighlight();
-            _grid.ShowInvalidPlaces(_draggedShip);
-        }
-
         UpdateDraggedShip();
 
         if (Input.GetMouseButtonUp(0))
@@ -84,6 +61,8 @@ public class GridPlacement : MonoBehaviour
         if (_pickupTile != null)
             _grid.ClearShip(ship);
 
+        _grid.SetPreview(false);
+
         //if (TryGetMouseWorldPoint(out var mouseWorld))
         //    _dragOffset = ship.transform.position - mouseWorld;
         //else
@@ -94,6 +73,29 @@ public class GridPlacement : MonoBehaviour
     {
         if (!TryGetMouseWorldPoint(out var mouseWorld))
             return;
+
+        if (Input.GetMouseButtonDown(1))
+        {
+            _draggedShip.Vertical = !_draggedShip.Vertical;
+
+            if (_draggedShip.Vertical)
+                _draggedShip.transform.Rotate(0f, -90f, 0f, Space.World);
+            else
+                _draggedShip.transform.Rotate(0f, 90f, 0f, Space.World);
+
+            // Realign after rotation
+            //if (TryGetMouseWorldPoint(out var mouseWorld))
+            //{
+            //    Vector3 target2 = mouseWorld;
+            //    target2.y = _dragHeight;
+
+            //    Vector3 delta2 = _draggedShip.GrabPoint.position - _draggedShip.transform.position;
+            //    _draggedShip.transform.position = target2 - delta2;
+            //}
+
+            _grid.ClearAllHighlight();
+            _grid.ShowInvalidPlaces(_draggedShip);
+        }
 
         Vector3 target = mouseWorld;
         target.y = _dragHeight;
@@ -130,28 +132,35 @@ public class GridPlacement : MonoBehaviour
             _grid.ClearAllHighlight();
             return;
         }
-
-        bool serverAccepted = await _controller.PlaceShip(
-            _draggedShip,
-            targetTile.Coord.x,
-            targetTile.Coord.y
-        );
-        
-        if (!serverAccepted)
+        // If draggedShip is not null will update location while this waits for a response
+        var tmpDraggedShip = _draggedShip;
+        _draggedShip = null;
+        if (!IgnoreServer)
         {
-            _grid.ClearShip(_draggedShip);
-        
-            _draggedShip.transform.SetPositionAndRotation(_pickupPosition, _pickupRotation);
-            _draggedShip.Vertical = _pickupVertical;
-        
-            if (_pickupTile != null)
-                _grid.RestoreShip(_draggedShip, _pickupTile.Coord, _pickupVertical);
-            else
-                _draggedShip.ClearPlacement();
+            bool serverAccepted = await _controller.PlaceShip(
+                tmpDraggedShip,
+                targetTile.Coord.x,
+                targetTile.Coord.y
+            );
+
+            if (!serverAccepted)
+            {
+                Debug.Log("Server did not accept position, restoring");
+                _grid.ClearShip(tmpDraggedShip);
+
+                tmpDraggedShip.transform.SetPositionAndRotation(_pickupPosition, _pickupRotation);
+                tmpDraggedShip.Vertical = _pickupVertical;
+
+                if (_pickupTile != null)
+                    _grid.RestoreShip(tmpDraggedShip, _pickupTile.Coord, _pickupVertical);
+                else
+                    tmpDraggedShip.ClearPlacement();
+            }
         }
 
-        _draggedShip = null;
+
         _grid.ClearAllHighlight();
+        _grid.SetPreview(true);
     }
 
     private bool TryGetShipUnderPointer(out Ship ship)
