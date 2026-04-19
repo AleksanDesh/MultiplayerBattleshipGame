@@ -200,11 +200,11 @@ namespace Network
             connection.Send(reply.GetBytes());
             if (result == 1)
             {
-                // TODO: Broadcast the start
+                // TODO: Broadcast the start (or just tell the enemy that the battle has started)
                 var session = _userSessionKey[player.Username];
                 var enemyPlayer = session.GetEnemyParticipant(player).Player;
                 var enemyConnection = _userTcpKey[enemyPlayer.Username];
-
+                enemyConnection.Send(reply.GetBytes());
             }
         }
         // We receive name, the oponent's victories coumt, ship preset (or game preset)

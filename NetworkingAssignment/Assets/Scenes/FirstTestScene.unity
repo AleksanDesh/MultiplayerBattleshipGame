@@ -489,6 +489,7 @@ MonoBehaviour:
   _width: 0
   _height: 8
   _tilePrefab: {fileID: 4563123894046378595, guid: 3717392f60d2a664e9ef2c2d406453bc, type: 3}
+  GenerateRegardless: 0
 --- !u!4 &176292024
 Transform:
   m_ObjectHideFlags: 0
@@ -1676,59 +1677,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 613412433}
   m_CullTransparentMesh: 1
---- !u!1 &625239028
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 625239030}
-  - component: {fileID: 625239029}
-  m_Layer: 0
-  m_Name: Controllers
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &625239029
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 625239028}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e3ce74bdaa95a14caf58aeb5aaf3384, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShipPlacementController
-  _camera: {fileID: 330585545}
-  _grid: {fileID: 1460025349}
-  _tileMask:
-    serializedVersion: 2
-    m_Bits: 64
-  _shipMask:
-    serializedVersion: 2
-    m_Bits: 128
-  _dragHeight: 0.5
---- !u!4 &625239030
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 625239028}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -5.54216, y: -0, z: 2.49554}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &772178264
 GameObject:
   m_ObjectHideFlags: 0
@@ -2846,6 +2794,7 @@ MonoBehaviour:
   _width: 0
   _height: 8
   _tilePrefab: {fileID: 4563123894046378595, guid: 3717392f60d2a664e9ef2c2d406453bc, type: 3}
+  GenerateRegardless: 0
 --- !u!4 &1460025350
 Transform:
   m_ObjectHideFlags: 0
@@ -3245,8 +3194,9 @@ GameObject:
   m_Component:
   - component: {fileID: 1934442409}
   - component: {fileID: 1934442408}
+  - component: {fileID: 1934442410}
   m_Layer: 0
-  m_Name: 'Controller '
+  m_Name: Controllers
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3283,6 +3233,28 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1934442410
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1934442407}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e3ce74bdaa95a14caf58aeb5aaf3384, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShipPlacementController
+  _camera: {fileID: 330585545}
+  _grid: {fileID: 1460025349}
+  _tileMask:
+    serializedVersion: 2
+    m_Bits: 64
+  _shipMask:
+    serializedVersion: 2
+    m_Bits: 128
+  _dragHeight: 0.5
+  IgnoreServer: 0
 --- !u!1 &2128891439
 GameObject:
   m_ObjectHideFlags: 0
@@ -3797,7 +3769,6 @@ SceneRoots:
   - {fileID: 1460025350}
   - {fileID: 176292024}
   - {fileID: 772178267}
-  - {fileID: 625239030}
   - {fileID: 5398004056012653202}
   - {fileID: 6805193347790422181}
   - {fileID: 8132652457852332109}
