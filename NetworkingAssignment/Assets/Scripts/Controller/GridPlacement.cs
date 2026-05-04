@@ -8,6 +8,7 @@ public class GridPlacement : MonoBehaviour
 {
     [SerializeField] private Camera _camera;
     [SerializeField] private GridManager _grid;
+    [SerializeField] private GridManager _enemyGrid;
     [SerializeField] private LayerMask _tileMask = ~0;
     [SerializeField] private LayerMask _shipMask = ~0;
     [SerializeField] private float _dragHeight = 0.5f;
@@ -21,6 +22,7 @@ public class GridPlacement : MonoBehaviour
     private bool _pickupVertical;
 
     private bool _dragEnabled = true;
+    bool _bombing = false; // if currently waiting for bomb result from server
 
     private void Awake()
     {
@@ -29,21 +31,45 @@ public class GridPlacement : MonoBehaviour
         _controller = FindFirstObjectByType<SeaBattleClientController>();
     }
 
-    public void UpdateDragging()
+    /// <summary>
+    /// If you disable drag, this script will listen to bombing. Else dragging ships
+    /// </summary>
+    public void EnableDrag(bool state)
     {
-        if (!_dragEnabled) return;
-        if (_draggedShip == null)
+        _dragEnabled = state;
+    }
+
+    public void UpdateGrids()
+    {
+        if (!_dragEnabled) 
         {
-            if (Input.GetMouseButtonDown(0) && TryGetShipUnderPointer(out var ship))
-                BeginDrag(ship);
+            if (_draggedShip == null)
+            {
+                if (Input.GetMouseButtonDown(0) && TryGetShipUnderPointer(out var ship))
+                    BeginDrag(ship);
 
-            return;
+                return;
+            }
+
+            UpdateDraggedShip();
+
+            if (Input.GetMouseButtonUp(0))
+                EndDrag();
+
         }
-
-        UpdateDraggedShip();
-
-        if (Input.GetMouseButtonUp(0))
-            EndDrag();
+        else
+        {
+            if (Input.GetMouseButtonDown(0) && TryGetTileUnderPointer(out var tile))
+            {
+                if (_enemyGrid.TryGetTile(tile.Coord, out var enemyTile))
+                {
+                    if (enemyTile == tile) // check just in case for some reason they are different
+                    {
+                        BombTile(tile);
+                    }
+                }
+            }
+        }
     }
 
     private void BeginDrag(Ship ship)
@@ -104,6 +130,24 @@ public class GridPlacement : MonoBehaviour
         _draggedShip.transform.position = target - delta;
     }
 
+    private async void BombTile(Tile tile)
+    {
+        if (_bombing) return;
+        if (tile.CurrentState != Tile.State.Emtpy) return;
+        _bombing = true;
+        if (!IgnoreServer)
+        { // TODO: ask the view to make some changes
+            bool serverAccepted = await _controller.Bomb(tile.Coord.x, tile.Coord.y);
+            if (!serverAccepted)
+            {
+                Debug.Log("Server did not accept bombing position, restoring");
+            }
+        } 
+
+        _bombing = false;
+       
+    }
+
     private async void EndDrag()
     {
         if (_draggedShip == null)
@@ -161,6 +205,11 @@ public class GridPlacement : MonoBehaviour
 
         _grid.ClearAllHighlight();
         _grid.SetPreview(true);
+    }
+
+    private async void AttackLocation(int x, int y)
+    {
+
     }
 
     private bool TryGetShipUnderPointer(out Ship ship)

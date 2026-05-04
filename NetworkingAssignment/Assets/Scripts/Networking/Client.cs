@@ -64,17 +64,22 @@ namespace Network
             }
         }
 
-        public delegate void BombingEvent(int x, int y);
+        public delegate void BombingEvent(Bombpckg result);
         public event BombingEvent OnBombing;
-        private PendingBombing _pendingBombing;
-        private sealed class PendingBombing
+        private Bombpckg _pendingBombing;
+        public class Bombpckg
         {
-            public Location location { get; }
+            public Vector2Int location;
+            public int result;
+            // If true => bombing enemy location
+            public bool IsForEnemy;
             public TaskCompletionSource<int> Tcs { get; }
-            public PendingBombing(int x, int y)
+            public Bombpckg(int x, int y, int result, bool isForEnemy)
             {
-                location = new Location(x, y);
+                location = new Vector2Int(x, y);
                 Tcs = new TaskCompletionSource<int>();
+                this.result = result;
+                IsForEnemy = isForEnemy;
             }
         }
 
@@ -110,6 +115,9 @@ namespace Network
                 this.boardSize = boardSize;
             }
         }
+
+        public delegate void Vicotry(bool isWinner); // am I the winner
+        public event Vicotry OnVictory;
         void Awake()
         {
             Connect();
@@ -176,7 +184,7 @@ namespace Network
 
         public Task<int> Bomb(int x, int y)
         {
-            _pendingBombing = new PendingBombing(x, y);
+            _pendingBombing = new Bombpckg(x, y, -2, true);
             OSCMessageOut message = new OSCMessageOut("/Bomb").AddInt(x).AddInt(y);
             _connection?.Send(message.GetBytes());
             return _pendingBombing.Tcs.Task;
@@ -234,6 +242,7 @@ namespace Network
             // mines to place
             // board size
             _dispatcher.AddListener("/StartBattle", StartBattle, OSCUtil.STRING, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT);
+            _dispatcher.AddListener("/Victory", Victory, OSCUtil.BOOL); // If it's me who won
         }
 
         /// <summary>
@@ -340,8 +349,8 @@ namespace Network
             if (pending == null)
                 return;
 
-            if (result == 0)
-                OnBombing?.Invoke(pending.location.X, pending.location.Y);
+            pending.result = result;
+            OnBombing?.Invoke(pending);
             pending.Tcs?.TrySetResult(result);
         }
 
@@ -370,6 +379,12 @@ namespace Network
             int boardSize = message.ReadInt();
             BattleStartPckg package = new BattleStartPckg(enemyUsername, enemyVictories, shipPreset, minesAllowed, boardSize);
             OnBattleStarted?.Invoke(package);
+        }
+
+        void Victory(OSCMessageIn message, IPEndPoint remote)
+        {
+            bool result = message.ReadBool();
+            OnVictory?.Invoke(result);
         }
         #endregion
     }

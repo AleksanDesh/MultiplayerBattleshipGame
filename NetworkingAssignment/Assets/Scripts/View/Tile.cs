@@ -21,6 +21,15 @@ public class Tile : MonoBehaviour
     private bool _previewActive = true;
     public Vector2Int Coord { get; private set; }
     public bool IsOccupied => _occupied;
+    public bool IsEnemyTile;
+    public State CurrentState = State.Emtpy;
+
+    public enum State
+    {
+        Emtpy,
+        Bombed,
+        Destroyed
+    }
 
     private void Awake()
     {

@@ -43,8 +43,9 @@ namespace Controller
 
         private void Update()
         {
-            _gridPlacement.UpdateDragging();
+            _gridPlacement.UpdateGrids();
         }
+
         #region ButtonMethods
         bool IsJoiningRunning = false;
         public void BtnJoin()
@@ -75,16 +76,12 @@ namespace Controller
         }
 
         bool IsBombRunning = false;
-        public void BtnBomb()
-        {
-            if (IsBombRunning) return;
-            if (!TryReadCoordinates(out var x, out var y))
-            {
-                Debug.LogWarning($"SeaBattleController: Invalid coodinates");
-                return;
-            }
-            Bomb(x, y);
-        }
+        //public void BtnBomb(Vector2Int coords)
+        //{
+        //    if (IsBombRunning) return;
+            
+        //    Bomb(coords.x, coords.y);
+        //}
 
         bool IsMarkReadyRunning = false;
         public void BtnMarkReady()
@@ -176,13 +173,14 @@ namespace Controller
                 IsPlaceMineRunning = false;
             }
         }
-        private async void Bomb(int x, int y)
+        public async Task<bool> Bomb(int x, int y)
         {// TODO: Make the controller change the view, then wait for the result,
          // and if the result is 0, do nothing, else, restore the previous position
             IsBombRunning = true;
             try
             {
                 int result = await _networkClient.Bomb(x, y);
+                return result == 0 || result == 6;
                 //Debug.Log($"Controller: The result of pressing Bomb is {result}");
             }
             finally

@@ -24,7 +24,8 @@ public class GridManager : MonoBehaviour
         _height = height;
         GenerateGrid();
     }
-    void GenerateGrid()
+
+    public void GenerateGrid()
     {
         DestroyAllTiles();
         for (int x = 0; x < _height; x++)

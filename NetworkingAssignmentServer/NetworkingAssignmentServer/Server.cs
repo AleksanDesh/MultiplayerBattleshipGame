@@ -24,6 +24,7 @@ namespace Network
         List<PlayerData> _connectedPlayersList = new List<PlayerData>();
         List<SessionData> _sessionDatas = new List<SessionData>();
         Dictionary<string, SessionData> _userSessionKey = new Dictionary<string, SessionData>();
+        // Probably this is redundant (and therefore can cause bugs later?):
         Dictionary<string, PlayerData> _userPlayerKey = new Dictionary<string, PlayerData>();
         Dictionary<TcpNetworkConnection, PlayerData> _tcpNetPlayerKey = new Dictionary<TcpNetworkConnection, PlayerData>();
         Dictionary<string, TcpNetworkConnection> _userTcpKey = new Dictionary<string, TcpNetworkConnection>();
@@ -57,6 +58,7 @@ namespace Network
                 TcpNetworkConnection connection = new TcpNetworkConnection(client);
                 _allConnections.Add(connection);
                 _unloggedConnections.Add(connection);
+                // TODO: store in _ipBlah dictionary (and use it)
                 OSCLog.WriteLine("Server: Adding new connection from " + connection.Remote);
             }
         }
@@ -113,7 +115,7 @@ namespace Network
 
             OSCLog.WriteLine($"Server: Received Login attempt with username {username} and password {password}");
             bool sucess = TryUserLogin(username, password, out var result, out PlayerData? playerData);
-            foreach (var conn in _unloggedConnections)
+            foreach (var conn in _unloggedConnections) // hm -> TODO:
             {
                 if (conn.Remote.Equals(remote))
                 {
@@ -188,6 +190,18 @@ namespace Network
             OSCLog.WriteLine(debug);
             OSCMessageOut reply = new OSCMessageOut("/Bomb").AddInt(result);
             connection.Send(reply.GetBytes());
+
+            // TODO: If result is Victory for this player, broadcast.
+            if (result == 6)
+            {
+                var session = _userSessionKey[player.Username];
+                var enemyPlayer = session.GetEnemyParticipant(player).Player;
+                var enemyConnection = _userTcpKey[enemyPlayer.Username];
+                OSCMessageOut enemyPlayerMessage = new OSCMessageOut("/Victory").AddBool(false); // enemy lost
+                OSCMessageOut playerMessage = new OSCMessageOut("/Victory").AddBool(true); // this player won
+                connection.Send(playerMessage.GetBytes());
+                enemyConnection.Send(enemyPlayerMessage.GetBytes());
+            }
         }
 
         void ConnectionMarkReadyRequest(OSCMessageIn message, IPEndPoint remote)
@@ -212,7 +226,8 @@ namespace Network
         // mines to place
         // board size
         void ConnectionEnqueueRequest(OSCMessageIn message, IPEndPoint remote)
-        {
+        {// TODO: check if already in a session or inapropriate state
+            // OR (PB): TODO: Use Rooms for a clean separation :-)   (See BC3, slide 43)
             int result = -1;
             TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
             if (_tcpNetPlayerKey.TryGetValue(connection, out var player))
@@ -289,28 +304,28 @@ namespace Network
 
             return false;
         }
-        public bool ConnectUser(string name, string password)
-        { // TODO: maybe add instant data sending with the leaderboards?
-            bool success = _login.LoginOrCreate(name, password, out PlayerData? user);
-            if (user != null)
-            {// TODO: add a check if the user is already in a session, if he is, put him in there
-                if (!_userPlayerKey.ContainsKey(name))
-                    _userPlayerKey.Add(name, user);
-                else
-                {
-                    OSCLog.WriteLine($"Server: !!!! Trying to connect already connected user {name}");
-                    return false;
-                }
-                _connectedPlayersMap.Add(user);
-                _connectedPlayersList.Add(user);
-                // Enqueue immediately
-                _playerQueue.Enqueue(user);
-                OSCLog.WriteLine($"Server: {name} connected succesefully, added to queue");
-                return true;
-            }
-            else
-                return false;
-        }
+        //public bool ConnectUser(string name, string password)
+        //{ // TODO: maybe add instant data sending with the leaderboards?
+        //    bool success = _login.LoginOrCreate(name, password, out PlayerData? user);
+        //    if (user != null)
+        //    {// TODO: add a check if the user is already in a session, if he is, put him in there
+        //        if (!_userPlayerKey.ContainsKey(name))
+        //            _userPlayerKey.Add(name, user);
+        //        else
+        //        {
+        //            OSCLog.WriteLine($"Server: !!!! Trying to connect already connected user {name}");
+        //            return false;
+        //        }
+        //        _connectedPlayersMap.Add(user);
+        //        _connectedPlayersList.Add(user);
+        //        // Enqueue immediately
+        //        _playerQueue.Enqueue(user);
+        //        OSCLog.WriteLine($"Server: {name} connected succesefully, added to queue");
+        //        return true;
+        //    }
+        //    else
+        //        return false;
+        //}
 
         bool TryCreateSession()
         {
@@ -564,7 +579,7 @@ namespace Network
                 case BombingResult.Victory:
                     {
                         result = 6;
-                        // TODO: victory logic, broadcast to everybody, that the caller won
+                        // TODO: victory logic, clear the room ,move the player, etc.
                         _login.SaveAccount(player);
                         message = "YOU WON";
                         break;

@@ -1,4 +1,5 @@
 using Controller;
+using Model;
 using NUnit.Framework;
 using System.Collections.Generic;
 using TMPro;
@@ -39,6 +40,10 @@ namespace View
         public GridManager EnemyGrid;
 
         [SerializeField] public List<GameObject> ShipPresets = new List<GameObject>();
+        [SerializeField] public GameObject XPrefab;
+        [SerializeField] public GameObject BombPrefab;
+        Dictionary<Tile, GameObject> _destroyedTiles;
+        Dictionary<Tile, GameObject> _bombedTiles;
 
         private void Awake()
         {
@@ -64,6 +69,8 @@ namespace View
                 _controller.NetworkClient.OnMarkReady += MarkReadyEvent;
                 _controller.NetworkClient.OnEnqueue += EnqueueEvent;
                 _controller.NetworkClient.OnBattleStarted += StartBattle;
+                _controller.NetworkClient.OnBombing += BombResult;
+                _controller.NetworkClient.OnVictory += VictoryResult;
             }
         }
         private void OnDisable()
@@ -73,6 +80,8 @@ namespace View
                 _controller.NetworkClient.OnMarkReady -= MarkReadyEvent;
                 _controller.NetworkClient.OnEnqueue -= EnqueueEvent;
                 _controller.NetworkClient.OnBattleStarted -= StartBattle;
+                _controller.NetworkClient.OnBombing -= BombResult;
+                _controller.NetworkClient.OnVictory -= VictoryResult;
             }
         }
 
@@ -89,7 +98,7 @@ namespace View
                     }
                 case 1:
                     {
-                        BattleReady?.Invoke();
+                        BattleStarted?.Invoke();
                         _resultText.text = $"Starting battle...";
                         break;
                     }
@@ -149,7 +158,53 @@ namespace View
             Instantiate(ShipPresets[package.ShipPreset - 1], this.transform); // spawn the preset at the view location
             EnemyUsernameText.text = $"Oponent: {package.EnemyUsername}";
             EnemyVictoriesText.text = $"Victories: {package.EnemyVictories}";
+            EnemyGrid._width = package.BoardSize;
+            EnemyGrid._height = package.BoardSize;
         }
+
+        /// 0 = sucess
+        /// 1 = out of bounds
+        /// 2 = already bombed
+        /// 3 = empty 
+        /// 4 = mine 
+        /// 5 = not in a session
+        /// 6 = victory
+        void BombResult(Bombpckg package)
+        {
+            var grid = package.IsForEnemy ? EnemyGrid : UserGrid;
+
+            if (!grid.TryGetTile(package.location, out var tile))
+                return;
+
+            switch (package.result)
+            {
+                case 0:
+                case 6:
+                    {
+                        // Use the apropriate grid, and spawn X there (add blowing VFX?)
+                        tile.CurrentState = Tile.State.Destroyed;
+                        var newPrf = Instantiate(XPrefab, tile.transform);
+                        _destroyedTiles.Add(tile, newPrf);
+                        break;
+                    }
+
+                case 3:
+                    {
+                        // Use the apropriate grid and spawn bomb
+                        tile.CurrentState = Tile.State.Bombed;
+                        var newPrf = Instantiate(BombPrefab, tile.transform);
+                        _bombedTiles.Add(tile, newPrf);
+                        break;
+                    }
+            }
+        }
+
+        void VictoryResult(bool isWinner)
+        {// TODO: if true, we won, if not -> enemy
+
+        }
+
+
 
         private void ShowResult(string message)
         {
