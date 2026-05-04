@@ -1,8 +1,10 @@
 using Controller;
 using Model;
+using OSCTools;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem.XR;
+using static Network.Client;
 
 public class GridPlacement : MonoBehaviour
 {
@@ -12,6 +14,7 @@ public class GridPlacement : MonoBehaviour
     [SerializeField] private LayerMask _tileMask = ~0;
     [SerializeField] private LayerMask _shipMask = ~0;
     [SerializeField] private float _dragHeight = 0.5f;
+    
     public bool IgnoreServer;
     private SeaBattleClientController _controller;
     private Ship _draggedShip;
@@ -23,6 +26,7 @@ public class GridPlacement : MonoBehaviour
 
     private bool _dragEnabled = true;
     bool _bombing = false; // if currently waiting for bomb result from server
+    bool _isMyTurn;
 
     private void Awake()
     {
@@ -41,7 +45,7 @@ public class GridPlacement : MonoBehaviour
 
     public void UpdateGrids()
     {
-        if (!_dragEnabled) 
+        if (_dragEnabled) 
         {
             if (_draggedShip == null)
             {
@@ -59,7 +63,7 @@ public class GridPlacement : MonoBehaviour
         }
         else
         {
-            if (Input.GetMouseButtonDown(0) && TryGetTileUnderPointer(out var tile))
+            if (_isMyTurn && Input.GetMouseButtonDown(0) && TryGetTileUnderPointer(out var tile))
             {
                 if (_enemyGrid.TryGetTile(tile.Coord, out var enemyTile))
                 {
@@ -135,17 +139,19 @@ public class GridPlacement : MonoBehaviour
         if (_bombing) return;
         if (tile.CurrentState != Tile.State.Emtpy) return;
         _bombing = true;
+        _isMyTurn = false;
         if (!IgnoreServer)
         { // TODO: ask the view to make some changes
             bool serverAccepted = await _controller.Bomb(tile.Coord.x, tile.Coord.y);
             if (!serverAccepted)
             {
                 Debug.Log("Server did not accept bombing position, restoring");
+                _isMyTurn = true;
             }
         } 
 
-        _bombing = false;
        
+       _bombing = false;
     }
 
     private async void EndDrag()
@@ -207,11 +213,6 @@ public class GridPlacement : MonoBehaviour
         _grid.SetPreview(true);
     }
 
-    private async void AttackLocation(int x, int y)
-    {
-
-    }
-
     private bool TryGetShipUnderPointer(out Ship ship)
     {
         ship = null;
@@ -257,4 +258,35 @@ public class GridPlacement : MonoBehaviour
         point = ray.GetPoint(enter);
         return true;
     }
+
+    #region serverPackages
+    private void OnEnable()
+    {
+        _controller.NetworkClient.OnBombing += UpdateTurn;
+        _controller.NetworkClient.OnBattleStarted += StartBattle;
+
+    }
+
+    private void OnDisable()
+    {
+        _controller.NetworkClient.OnBombing -= UpdateTurn;
+        _controller.NetworkClient.OnBattleStarted -= StartBattle;
+    }
+
+    void UpdateTurn(Bombpckg pckg)
+    {// if sucessefully bombed enemy tile, make one more turn
+        if (pckg.result == 0 && pckg.IsForEnemy)
+            _isMyTurn = true;
+        // if was not my turn and it failed => my turn (ignore result 6)
+        if (pckg.result != 0 && !pckg.IsForEnemy)
+            _isMyTurn = true;
+        
+    }
+
+    void StartBattle(BattleStartPckg pckg)
+    {
+        _isMyTurn = pckg.Turn;
+    }
+
+    #endregion
 }

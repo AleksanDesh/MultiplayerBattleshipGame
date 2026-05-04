@@ -180,7 +180,8 @@ namespace Controller
             try
             {
                 int result = await _networkClient.Bomb(x, y);
-                return result == 0 || result == 6;
+                bool sucess = result == 0 || result == 6 || result == 3 || result == 4;
+                return sucess;
                 //Debug.Log($"Controller: The result of pressing Bomb is {result}");
             }
             finally

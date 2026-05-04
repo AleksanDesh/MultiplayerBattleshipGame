@@ -34,7 +34,16 @@ namespace Network
 
         // Queing for players, now enques all newly connected users
         Queue<PlayerData> _playerQueue = new Queue<PlayerData>();
-        
+        public static string GetLocalIPv4()
+        {
+            var host = Dns.GetHostEntry(Dns.GetHostName());
+
+            var ip = host.AddressList
+                .FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork &&
+                                     !IPAddress.IsLoopback(a));
+
+            return ip?.ToString() ?? "No IPv4 found";
+        }
         public void Awake()
         {
             //string path = Path.Combine(Application.persistentDataPath, "players.json");
@@ -48,6 +57,7 @@ namespace Network
 
             _dispatcher.ShowIncomingMessages = true;
             Initialize();
+            OSCLog.WriteLine(("Host IP: " + GetLocalIPv4()));
         }
 
         void AcceptNewConnection()
@@ -188,15 +198,19 @@ namespace Network
             var player = _tcpNetPlayerKey[connection];
             string debug = Bomb(player.Username, coordinates, out int result);
             OSCLog.WriteLine(debug);
-            OSCMessageOut reply = new OSCMessageOut("/Bomb").AddInt(result);
+            OSCMessageOut reply = new OSCMessageOut("/Bomb").AddInt(result).AddInt(coordinates[0]).AddInt(coordinates[1]).AddBool(true); // bool if this is for enemy tile
             connection.Send(reply.GetBytes());
-
-            // TODO: If result is Victory for this player, broadcast.
-            if (result == 6)
+            var session = _userSessionKey[player.Username];
+            var enemyPlayer = session.GetEnemyParticipant(player).Player;
+            var enemyConnection = _userTcpKey[enemyPlayer.Username];
+            if (result == 0 || result == 3 || result == 4)
             {
-                var session = _userSessionKey[player.Username];
-                var enemyPlayer = session.GetEnemyParticipant(player).Player;
-                var enemyConnection = _userTcpKey[enemyPlayer.Username];
+                OSCMessageOut enemyInform = new OSCMessageOut("/Bomb").AddInt(result).AddInt(coordinates[0]).AddInt(coordinates[1]).AddBool(false);
+                enemyConnection.Send(enemyInform.GetBytes());
+            }
+            // TODO: If result is Victory for this player, broadcast.
+            else if (result == 6)
+            {
                 OSCMessageOut enemyPlayerMessage = new OSCMessageOut("/Victory").AddBool(false); // enemy lost
                 OSCMessageOut playerMessage = new OSCMessageOut("/Victory").AddBool(true); // this player won
                 connection.Send(playerMessage.GetBytes());
@@ -284,7 +298,10 @@ namespace Network
             else
             {
                 if (user == null)
+                {
                     result = 2;
+                    OSCLog.WriteLine($"Server: {username} user not found");
+                }
                 else
                     result = 3;
                 return false;
@@ -361,10 +378,10 @@ namespace Network
             // This is for starting the battle. Broadcast
             OSCMessageOut player1Info = 
                 new OSCMessageOut("/StartBattle").AddString(player2.Username).AddInt(player2.TopScore)
-                .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length);
+                .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length).AddBool(true); // bool if first turn
             OSCMessageOut player2Info = 
                 new OSCMessageOut("/StartBattle").AddString(player1.Username).AddInt(player1.TopScore)
-                .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length);
+                .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length).AddBool(false);
             
             player1Connection.Send(player1Info.GetBytes());
             player2Connection.Send(player2Info.GetBytes());
@@ -534,7 +551,18 @@ namespace Network
             }
             var player = _userPlayerKey[username];
             var session = _userSessionKey[username];
-            var outcome = _battleBehavior.Bomb(session, player, location);
+            BombingResult outcome;
+            try
+            {
+                outcome = _battleBehavior.Bomb(session, player, location);
+            }
+            catch (InvalidOperationException error)
+            {
+                result = -1;
+                return error.Message;
+                //TODO: Disconnect this malicious client
+                
+            }
 
             string message = $"Server: {username} " + outcome.ToString();
 
@@ -581,7 +609,6 @@ namespace Network
                         result = 6;
                         // TODO: victory logic, clear the room ,move the player, etc.
                         _login.SaveAccount(player);
-                        message = "YOU WON";
                         break;
                     }
 

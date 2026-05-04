@@ -12,6 +12,7 @@ namespace NetworkingAssignmentServer
             
             while (true)
             {
+
                 server.Update();
                 // TODO: make actual fixed update
                 server.FixedUpdate();

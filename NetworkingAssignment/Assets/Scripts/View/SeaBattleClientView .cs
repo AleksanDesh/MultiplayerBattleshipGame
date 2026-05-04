@@ -40,10 +40,12 @@ namespace View
         public GridManager EnemyGrid;
 
         [SerializeField] public List<GameObject> ShipPresets = new List<GameObject>();
+        [SerializeField] public Transform ShipSpawnLocation;
         [SerializeField] public GameObject XPrefab;
         [SerializeField] public GameObject BombPrefab;
-        Dictionary<Tile, GameObject> _destroyedTiles;
-        Dictionary<Tile, GameObject> _bombedTiles;
+        Dictionary<Tile, GameObject> _destroyedTiles = new Dictionary<Tile, GameObject>();
+        Dictionary<Tile, GameObject> _bombedTiles = new Dictionary<Tile, GameObject>();
+
 
         private void Awake()
         {
@@ -98,6 +100,7 @@ namespace View
                     }
                 case 1:
                     {
+                        BattleReady?.Invoke();
                         BattleStarted?.Invoke();
                         _resultText.text = $"Starting battle...";
                         break;
@@ -152,10 +155,11 @@ namespace View
         }
 
         void StartBattle(BattleStartPckg package)
-        { // TODO: read the pacakge, create the board DONE, activate the preset, put the enemy stuff on UI
+        { // TODO: READ WHO'S TURN IT IS
             JoiningBattleEvent?.Invoke();
             UserGrid.StartBattle(package.BoardSize, package.BoardSize);
-            Instantiate(ShipPresets[package.ShipPreset - 1], this.transform); // spawn the preset at the view location
+            var ships = Instantiate(ShipPresets[package.ShipPreset - 1], UserGrid.transform); // spawn the preset at the view location
+            ships.transform.position = ShipSpawnLocation.position;
             EnemyUsernameText.text = $"Oponent: {package.EnemyUsername}";
             EnemyVictoriesText.text = $"Victories: {package.EnemyVictories}";
             EnemyGrid._width = package.BoardSize;
@@ -172,9 +176,12 @@ namespace View
         void BombResult(Bombpckg package)
         {
             var grid = package.IsForEnemy ? EnemyGrid : UserGrid;
+            var offset = package.IsForEnemy ? new Vector3(0, 0, 0) : new Vector3(0, 1, 0);
 
             if (!grid.TryGetTile(package.location, out var tile))
                 return;
+
+            UpdateTurnVisually(package);
 
             switch (package.result)
             {
@@ -184,6 +191,7 @@ namespace View
                         // Use the apropriate grid, and spawn X there (add blowing VFX?)
                         tile.CurrentState = Tile.State.Destroyed;
                         var newPrf = Instantiate(XPrefab, tile.transform);
+                        newPrf.transform.position += offset;
                         _destroyedTiles.Add(tile, newPrf);
                         break;
                     }
@@ -199,12 +207,22 @@ namespace View
             }
         }
 
+        void UpdateTurnVisually(Bombpckg pckg)
+        {// if sucessefully bombed enemy tile, make one more turn
+            if (pckg.result == 0 && pckg.IsForEnemy)
+                _resultText.text = $"Your turn, bomb";
+            // if was not my turn and it failed => my turn (ignore result 6)
+            else if (pckg.result != 0 && !pckg.IsForEnemy)
+                _resultText.text = $"Your turn, bomb";
+            else
+                _resultText.text = $"Enemy turn, wait";
+
+        }
+
         void VictoryResult(bool isWinner)
         {// TODO: if true, we won, if not -> enemy
 
         }
-
-
 
         private void ShowResult(string message)
         {

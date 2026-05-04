@@ -6,47 +6,61 @@ namespace Model
     internal class SeaBattleBehavior
     {
         public PlaceShipResult PlaceShip(SessionData session, PlayerData player, Ship ship)
-        {// TODO: check if this ship already exists
+        {
             if (session.Phase != SessionData.GamePhase.Preparation)
                 throw new InvalidOperationException("SeaBattleBehavior: Cannot place ships after battle has started.");
 
             if (ship == null)
                 throw new ArgumentNullException(nameof(ship));
 
+            if (ship.length <= 0)
+                throw new ArgumentOutOfRangeException(nameof(ship.length), "Ship length must be positive.");
+
             var board = session.GetOwnBoard(player);
             var participant = session.GetParticipant(player);
 
-            // If the ship was placed earlier, allow it to be placed, else return
-            if (participant.PlacedShips >= session.MaxShips && !participant.Ships.ContainsKey(ship.Id))
+            // If the ship already exists, this is a move/relocation of the same ship ID.
+            bool isReplacement = participant.Ships.TryGetValue(ship.Id, out var previousShip);
+
+            // Per-length quota check.
+            // Example: if the scenario allows only one length-3 ship, placing a second one fails.
+            int allowedCountForThisLength = session.Scenario.AllowedCount(ship.length);
+            if (allowedCountForThisLength == 0)
                 return PlaceShipResult.ShipLimitReached;
+
+            uint currentCountForThisLength = participant.GetPlacedShipsByLength(ship.length);
+
+            // If the same ship ID is being moved but keeps the same length, the old one should
+            // not count against the quota, because it is effectively being replaced.
+            if (isReplacement && previousShip?.length == ship.length)
+                currentCountForThisLength--;
+
+            if (currentCountForThisLength >= allowedCountForThisLength)
+                return PlaceShipResult.ShipLimitReached;
+
+            // Store the old occupied cells before any board changes.
+            // This lets us treat the old ship's own cells as temporarily "free" during validation.
+            HashSet<(int, int)> previousCells = null;
+            if (isReplacement)
+            {
+                previousCells = GetShipCells(
+                    (int)previousShip.position.X,
+                    (int)previousShip.position.Y,
+                    previousShip.length,
+                    previousShip.rotated
+                ).ToHashSet();
+            }
 
             int x = (int)ship.position.X;
             int y = (int)ship.position.Y;
             int length = ship.length;
             bool rotated = ship.rotated;
 
-            // Clean cell data where the ship was located before it it existed on the board
-            if (participant.Ships.ContainsKey(ship.Id))
-            {
-                Ship previous = participant.Ships[ship.Id];
-                var previousCells = GetShipCells((int)previous.position.X, (int)previous.position.Y, previous.length, previous.rotated);
-                foreach (var cellPos in previousCells)
-                {
-                    int cx = cellPos.Item1;
-                    int cy = cellPos.Item2;
-
-                    if (cx < 0 || cy < 0 || cx >= board.Length || cy >= board.Length)
-                        throw new ArgumentOutOfRangeException("SeaBattleBehavior: " +
-                            "Ship was located outside of bounds. This should not be possible");
-
-                    if (board[cx][cy]._state == Cell.CellState.Ship)
-                        board[cx][cy]._state = Cell.CellState.Empty;
-                }
-            }
-
             var shipCells = GetShipCells(x, y, length, rotated);
 
-            // Check if the cells are availible
+            // First pass: bounds + direct cell occupancy.
+            // The "previousCells" exception prevents the current ship from blocking itself
+            // while it is being moved to a new position.
             foreach (var cellPos in shipCells)
             {
                 int cx = cellPos.Item1;
@@ -55,11 +69,17 @@ namespace Model
                 if (cx < 0 || cy < 0 || cx >= board.Length || cy >= board.Length)
                     return PlaceShipResult.OutOfBounds;
 
-                if (board[cx][cy]._state != Cell.CellState.Empty)
+                if (board[cx][cy]._state != Cell.CellState.Empty &&
+                    !(isReplacement && previousCells.Contains((cx, cy))))
+                {
                     return PlaceShipResult.CellOccupied;
+                }
             }
 
-            // Check if the surrounding cells are occupied
+            // Second pass: adjacency rule.
+            // Ships may not touch, even diagonally.
+            // Again, previousCells are ignored because the current ship is allowed to occupy
+            // the space where its old cells were before the move.
             foreach (var cellPos in shipCells)
             {
                 int cx = cellPos.Item1;
@@ -75,22 +95,40 @@ namespace Model
                         if (nx < 0 || ny < 0 || nx >= board.Length || ny >= board.Length)
                             continue;
 
-                        if (!shipCells.Contains((nx, ny)) && board[nx][ny]._state == Cell.CellState.Ship)
+                        if (isReplacement && previousCells.Contains((nx, ny)))
+                            continue;
+
+                        if (board[nx][ny]._state == Cell.CellState.Ship)
                             return PlaceShipResult.ShipNearby;
                     }
                 }
             }
+
+            // Only after all validation passes do we mutate the board.
+            if (isReplacement)
+            {
+                // Clear the old ship cells from the board before writing the new position.
+                foreach (var cellPos in previousCells)
+                {
+                    if (board[cellPos.Item1][cellPos.Item2]._state == Cell.CellState.Ship)
+                        board[cellPos.Item1][cellPos.Item2]._state = Cell.CellState.Empty;
+                }
+
+                participant.DecrementPlacedShipsByLength(previousShip.length);
+            }
+            else
+            {
+                participant.IncrementPlacedShips();
+            }
+
+            participant.IncrementPlacedShipsByLength(ship.length);
+
             foreach (var cellPos in shipCells)
             {
                 board[cellPos.Item1][cellPos.Item2]._state = Cell.CellState.Ship;
             }
-            // If the ship did exist, remove it and don't increment placed ships
-            if (participant.Ships.ContainsKey(ship.Id))
-                participant.Ships.Remove(ship.Id);
-            else // new ship placed => increment
-                participant.IncrementPlacedShips();
 
-            participant.TryAddShip(ship);
+            participant.Ships[ship.Id] = ship;
             return PlaceShipResult.Success;
         }
         /// <summary>
@@ -187,13 +225,20 @@ namespace Model
                     }
                 case Cell.CellState.Ship:
                     {
+                        // One bomb destroys one occupied cell, not one whole ship.
+                        // This is why victory must be based on total ship cells, not ship objects.
                         cell._state = Cell.CellState.Bombed;
-                        enemyParticipant.IncrementLostShips();
+                        enemyParticipant.IncrementLostShipCells();
+
+                        // When every ship cell on the enemy board has been destroyed, the battle ends.
                         if (IfLost(session, enemyParticipant))
                         {
-                            player.UpdateTopScore(player.TopScore+1);
+                            player.UpdateTopScore(player.TopScore + 1);
+                            session.FinishGame();
                             return BombingResult.Victory;
                         }
+
+                        // Normal hit: same player keeps the turn.
                         session._participantTurn = participant.Side;
                         return BombingResult.Sucess;
                     }
@@ -219,30 +264,31 @@ namespace Model
         public MarkingResult MarkReady(SessionData session, PlayerData player)
         {
             var participant = session.GetParticipant(player);
+
             if (participant.IsReady)
                 return MarkingResult.AlreadyMarked;
 
             if (participant.PlacedShips != session.MaxShips)
                 return MarkingResult.ShipsNotPlaced;
+
             if (participant.PlacedMines != session.MaxMines)
                 return MarkingResult.MinesNotPlaced;
 
             if (session.MarkReady(participant))
                 return MarkingResult.BattleStarted;
-            else
-                return MarkingResult.Success;
+
+            return MarkingResult.Success;
         }
 
         /// <summary>
-        /// Method to check whether this party has lost
+        /// Returns true when the participant has lost all ship cells.
         /// </summary>
         /// <param name="session"></param>
-        /// <param name="player">The party, that should not have ships left</param>
+        /// <param name="player"></param>
         /// <returns></returns>
         bool IfLost(SessionData session, SessionParticipant player)
         {
-            if (player.LostShips == session.MaxShips) return true;
-            return false;
+            return player.LostShipCells >= session.TotalShipCells;
         }
 
         internal enum PlaceShipResult

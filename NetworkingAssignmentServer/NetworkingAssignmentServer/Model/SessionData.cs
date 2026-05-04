@@ -14,21 +14,26 @@ namespace Model
             Battle,
             Finished
         }
+
         static int _nextId;
-        private readonly object _sync = new object(); // in case both players click ready at the same time
+        private readonly object _sync = new object();
 
         public int SessionID { get; }
         public GamePhase Phase { get; private set; } = GamePhase.Preparation;
         public Cell[][] FirstMap { get; }
         public Cell[][] SecondMap { get; }
 
-        public readonly int MaxShips;
+        public ShipScenario Scenario { get; }
+
+        public int MaxShips => Scenario.TotalShips;
+        public int TotalShipCells => Scenario.TotalShipCells;
+
         public readonly int MaxMines;
 
         SessionParticipant[] _participants;
         public PlayerSide _participantTurn { get; set; }
 
-        public SessionData(PlayerData player1, PlayerData player2, int maxShips = 8, int maxMines = 4, int mapSize = 8)
+        public SessionData(PlayerData player1, PlayerData player2, int shipScenario = 6, int maxMines = 4, int mapSize = 8)
         {
             if (player1 == null) throw new ArgumentNullException(nameof(player1));
             if (player2 == null) throw new ArgumentNullException(nameof(player2));
@@ -36,17 +41,30 @@ namespace Model
 
             SessionID = Interlocked.Increment(ref _nextId);
 
+            Scenario = ShipScenario.FromId(shipScenario);
+
             FirstMap = CreateMap(mapSize);
             SecondMap = CreateMap(mapSize);
 
             _participants = new[] {
-                new SessionParticipant(player1, PlayerSide.First),
-                new SessionParticipant(player2, PlayerSide.Second)
-            };
+            new SessionParticipant(player1, PlayerSide.First),
+            new SessionParticipant(player2, PlayerSide.Second)
+        };
 
             MaxMines = maxMines;
-            MaxShips = maxShips;
             _participantTurn = PlayerSide.First;
+        }
+
+        public string GetScenarioDescription() => Scenario.Describe();
+        public void FinishGame()
+        {
+            lock (_sync)
+            {
+                if (Phase == GamePhase.Finished)
+                    return;
+
+                Phase = GamePhase.Finished;
+            }
         }
 
         public PlayerSide GetSide(PlayerData player)
@@ -146,14 +164,19 @@ namespace Model
     {
         public PlayerData Player { get; }
         public PlayerSide Side { get; }
-        private uint _lostShips = 0;
+
+        private uint _lostShipCells = 0;
         private uint _lostMines = 0;
         private uint _placedShips = 0;
         private uint _placedMines = 0;
-        public uint LostShips => _lostShips;
-        public uint LousedMines => _lostMines; 
+
+        private readonly Dictionary<int, uint> _placedShipsByLength = new Dictionary<int, uint>();
+
+        public uint LostShipCells => _lostShipCells;
+        public uint LousedMines => _lostMines;
         public uint PlacedShips => _placedShips;
         public uint PlacedMines => _placedMines;
+
         public bool IsReady { get; set; }
 
         private Dictionary<int, Ship> _ships = new Dictionary<int, Ship>();
@@ -165,20 +188,28 @@ namespace Model
             Side = side;
         }
 
-        public bool TryAddShip(Ship ship)
+        public uint GetPlacedShipsByLength(int length)
+            => _placedShipsByLength.TryGetValue(length, out var count) ? count : 0;
+
+        public void IncrementPlacedShips()
         {
-            if (_ships.ContainsKey(ship.Id))
-                return false;
-            _ships.Add(ship.Id, ship);
-            return true;
+            _placedShips++;
         }
 
-        public void IncrementPlacedShips(uint count = 1)
+        public void IncrementPlacedShipsByLength(int length)
         {
-            if (count < 1)
-                throw new ArgumentOutOfRangeException(nameof(count), "Cannot place fewer than 1 ship.");
+            _placedShipsByLength[length] = GetPlacedShipsByLength(length) + 1;
+        }
 
-            _placedShips += count;
+        public void DecrementPlacedShipsByLength(int length)
+        {
+            if (!_placedShipsByLength.TryGetValue(length, out var count) || count == 0)
+                return;
+
+            if (count == 1)
+                _placedShipsByLength.Remove(length);
+            else
+                _placedShipsByLength[length] = count - 1;
         }
 
         public void IncrementPlacedMines(uint count = 1)
@@ -189,12 +220,12 @@ namespace Model
             _placedMines += count;
         }
 
-        public void IncrementLostShips(uint count = 1)
+        public void IncrementLostShipCells(uint count = 1)
         {
             if (count < 1)
-                throw new ArgumentOutOfRangeException(nameof(count), "Cannot place fewer than 1 ship.");
+                throw new ArgumentOutOfRangeException(nameof(count), "Cannot lose fewer than 1 ship cell.");
 
-            _lostShips += count;
+            _lostShipCells += count;
         }
 
         public void IncrementLostMines(uint count = 1)
@@ -205,4 +236,35 @@ namespace Model
             _lostMines += count;
         }
     }
+}
+internal sealed class ShipScenario
+{
+    private readonly Dictionary<int, int> _limits;
+
+    private ShipScenario(Dictionary<int, int> limits)
+    {
+        _limits = limits;
+    }
+
+    public static ShipScenario FromId(int id) => id switch
+    {
+        1 => new ShipScenario(new() { [1] = 1 }),
+        2 => new ShipScenario(new() { [1] = 1, [2] = 1 }),
+        3 => new ShipScenario(new() { [1] = 1, [2] = 1, [3] = 1 }),
+        4 => new ShipScenario(new() { [1] = 2, [2] = 1, [3] = 1 }),
+        5 => new ShipScenario(new() { [1] = 2, [2] = 2, [3] = 1 }),
+        6 => new ShipScenario(new() { [1] = 2, [2] = 2, [3] = 2 }),
+        _ => throw new ArgumentOutOfRangeException(nameof(id), "Unknown ship scenario.")
+    };
+
+    public int AllowedCount(int length)
+        => _limits.TryGetValue(length, out var count) ? count : 0;
+
+    public int TotalShips => _limits.Values.Sum();
+
+    public int TotalShipCells => _limits.Sum(x => x.Key * x.Value);
+
+    public string Describe()
+        => string.Join(", ", _limits.OrderBy(x => x.Key)
+            .Select(x => $"{x.Value} ship 1x{x.Key}"));
 }

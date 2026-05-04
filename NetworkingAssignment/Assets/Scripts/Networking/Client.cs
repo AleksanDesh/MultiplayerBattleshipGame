@@ -12,7 +12,7 @@ namespace Network
 {
     public class Client : MonoBehaviour
     { // TODO: Add error displaying dictionary + make it Singleton
-        public IPAddress ServerIP = IPAddress.Loopback;
+        public IPAddress ServerIP = IPAddress.Parse("145.76.83.60");//IPAddress.Loopback;
         TcpNetworkConnection _connection;
         OSCDispatcher _dispatcher;
 
@@ -104,15 +104,18 @@ namespace Network
             int minesAllowed;
             public int MinesAllowed => minesAllowed;
             int boardSize;
-            public int BoardSize => boardSize; 
+            public int BoardSize => boardSize;
+            bool turn;
+            public bool Turn => turn;
 
-            public BattleStartPckg(string enemyUsername, int enemyVictories, int shipPreset, int minesAllowed, int boardSize) : this()
+            public BattleStartPckg(string enemyUsername, int enemyVictories, int shipPreset, int minesAllowed, int boardSize, bool turn) : this()
             {
                 this.enemyUsername = enemyUsername;
                 this.enemyVictories = enemyVictories;
                 this.shipPreset = shipPreset;
                 this.minesAllowed = minesAllowed;
                 this.boardSize = boardSize;
+                this.turn = turn;
             }
         }
 
@@ -123,7 +126,7 @@ namespace Network
             Connect();
         }
         public bool Connect(int port = 5376)
-        {// TODO: Add username loging. Also add Register.
+        {
             try
             {
                 TcpClient client = new TcpClient();
@@ -234,14 +237,16 @@ namespace Network
             _dispatcher.AddListener("/TryRegister", TryRegister, OSCUtil.INT);
             _dispatcher.AddListener("/PlaceShip", PlaceShip, OSCUtil.INT);
             _dispatcher.AddListener("/PlaceMine", PlaceMine, OSCUtil.INT);
-            _dispatcher.AddListener("/Bomb", Bomb, OSCUtil.INT);
+            // result, x, y, IsForEnemy
+            _dispatcher.AddListener("/Bomb", Bomb, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.BOOL);
             _dispatcher.AddListener("/MarkReady", MarkReady, OSCUtil.INT);
             _dispatcher.AddListener("/Enqueue", Enqueue, OSCUtil.INT);
             // We receive name, the oponent's victories coumt, ship preset (or game preset)
             // (2, 3, 4 etc. ships on the board allowed. Each number has a prefab of ships included),
             // mines to place
             // board size
-            _dispatcher.AddListener("/StartBattle", StartBattle, OSCUtil.STRING, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT);
+            // bool if you have the first turn
+            _dispatcher.AddListener("/StartBattle", StartBattle, OSCUtil.STRING, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.BOOL);
             _dispatcher.AddListener("/Victory", Victory, OSCUtil.BOOL); // If it's me who won
         }
 
@@ -341,15 +346,21 @@ namespace Network
         }
 
         void Bomb(OSCMessageIn message, IPEndPoint remote)
-        {
+        {          // result, x, y, IsMyCell
             int result = message.ReadInt();
+            int x = message.ReadInt();
+            int y = message.ReadInt();
+            bool isMy = message.ReadBool();
             var pending = _pendingBombing;
             _pendingBombing = null;
 
-            if (pending == null)
-                return;
+            if (pending == null) // If no pending -> enemy attacked us
+            {
+                pending = new Bombpckg(x, y, result, isMy);
+            }
+            else
+                pending.result = result;
 
-            pending.result = result;
             OnBombing?.Invoke(pending);
             pending.Tcs?.TrySetResult(result);
         }
@@ -377,7 +388,8 @@ namespace Network
             int shipPreset = message.ReadInt();
             int minesAllowed = message.ReadInt();
             int boardSize = message.ReadInt();
-            BattleStartPckg package = new BattleStartPckg(enemyUsername, enemyVictories, shipPreset, minesAllowed, boardSize);
+            bool turn = message.ReadBool();
+            BattleStartPckg package = new BattleStartPckg(enemyUsername, enemyVictories, shipPreset, minesAllowed, boardSize, turn);
             OnBattleStarted?.Invoke(package);
         }
 
