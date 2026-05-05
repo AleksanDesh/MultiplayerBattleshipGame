@@ -12,7 +12,10 @@ namespace Network
 {
     public class Client : MonoBehaviour
     { // TODO: Add error displaying dictionary + make it Singleton
-        public IPAddress ServerIP = IPAddress.Parse("145.76.83.60");//IPAddress.Loopback;
+        public static Client Instance { get; private set; }
+
+
+        public IPAddress ServerIP = IPAddress.Loopback;// IPAddress.Parse("");//IPAddress.Loopback;
         TcpNetworkConnection _connection;
         OSCDispatcher _dispatcher;
 
@@ -121,9 +124,17 @@ namespace Network
 
         public delegate void Vicotry(bool isWinner); // am I the winner
         public event Vicotry OnVictory;
-        void Awake()
+        private void Awake()
         {
-            Connect();
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            Connect(); // TODO: make the connection happen in a different place?
         }
         public bool Connect(int port = 5376)
         {

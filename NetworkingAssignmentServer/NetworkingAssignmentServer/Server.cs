@@ -1,6 +1,7 @@
 ﻿using Model;
 using NetworkConnections;
 using OSCTools;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Numerics;
@@ -66,8 +67,11 @@ namespace Network
             {
                 TcpClient client = _listener.AcceptTcpClient();
                 TcpNetworkConnection connection = new TcpNetworkConnection(client);
+                IPEndPoint remoteEndPoint = (IPEndPoint)client.Client.RemoteEndPoint!;
                 _allConnections.Add(connection);
                 _unloggedConnections.Add(connection);
+                _ipEndToTcpNetKey.Add(remoteEndPoint, connection);
+
                 // TODO: store in _ipBlah dictionary (and use it)
                 OSCLog.WriteLine("Server: Adding new connection from " + connection.Remote);
             }
@@ -125,22 +129,25 @@ namespace Network
 
             OSCLog.WriteLine($"Server: Received Login attempt with username {username} and password {password}");
             bool sucess = TryUserLogin(username, password, out var result, out PlayerData? playerData);
-            foreach (var conn in _unloggedConnections) // hm -> TODO:
+
+            var connection = _ipEndToTcpNetKey[remote]; // Has to be added when first connected...
+
+            //foreach (var conn in _unloggedConnections) // hm -> TODO:
+            //{
+            //    if (conn.Remote.Equals(remote))
+            //    {
+            if (sucess && playerData != null)
             {
-                if (conn.Remote.Equals(remote))
-                {
-                    if (sucess && playerData != null)
-                    {
-                        _tcpNetPlayerKey.Add(conn, playerData);
-                        _userTcpKey.Add(playerData.Username, conn);
-                        _ipEndToTcpNetKey.Add(remote, conn);
-                        _unloggedConnections.Remove(conn);
-                    }
-                    OSCMessageOut reply = new OSCMessageOut("/TryJoin").AddInt(result);
-                    conn.Send(reply.GetBytes());
-                    break;
-                }
+                _tcpNetPlayerKey.Add(connection, playerData);
+                _userTcpKey.Add(playerData.Username, connection);
+                
+                _unloggedConnections.Remove(connection);
             }
+            OSCMessageOut reply = new OSCMessageOut("/TryJoin").AddInt(result);
+            connection.Send(reply.GetBytes());
+            //        break;
+            //    }
+            //}
         }
 
         void ConnectionRegisterRequest(OSCMessageIn message, IPEndPoint remote)
@@ -195,20 +202,24 @@ namespace Network
                 return;
             int[] coordinates = new int[2] { x, y };
             TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
+
+            //Dictionaries can be cleaned in the Bomb() method
             var player = _tcpNetPlayerKey[connection];
+            var session = _userSessionKey[player.Username];
+            var enemyPlayer = session.GetEnemyParticipant(player).Player;
+            var enemyConnection = _userTcpKey[enemyPlayer.Username];
+
             string debug = Bomb(player.Username, coordinates, out int result);
             OSCLog.WriteLine(debug);
             OSCMessageOut reply = new OSCMessageOut("/Bomb").AddInt(result).AddInt(coordinates[0]).AddInt(coordinates[1]).AddBool(true); // bool if this is for enemy tile
             connection.Send(reply.GetBytes());
-            var session = _userSessionKey[player.Username];
-            var enemyPlayer = session.GetEnemyParticipant(player).Player;
-            var enemyConnection = _userTcpKey[enemyPlayer.Username];
+
             if (result == 0 || result == 3 || result == 4)
             {
                 OSCMessageOut enemyInform = new OSCMessageOut("/Bomb").AddInt(result).AddInt(coordinates[0]).AddInt(coordinates[1]).AddBool(false);
                 enemyConnection.Send(enemyInform.GetBytes());
             }
-            // TODO: If result is Victory for this player, broadcast.
+            
             else if (result == 6)
             {
                 OSCMessageOut enemyPlayerMessage = new OSCMessageOut("/Victory").AddBool(false); // enemy lost
@@ -228,7 +239,6 @@ namespace Network
             connection.Send(reply.GetBytes());
             if (result == 1)
             {
-                // TODO: Broadcast the start (or just tell the enemy that the battle has started)
                 var session = _userSessionKey[player.Username];
                 var enemyPlayer = session.GetEnemyParticipant(player).Player;
                 var enemyConnection = _userTcpKey[enemyPlayer.Username];
@@ -325,7 +335,7 @@ namespace Network
         //{ // TODO: maybe add instant data sending with the leaderboards?
         //    bool success = _login.LoginOrCreate(name, password, out PlayerData? user);
         //    if (user != null)
-        //    {// TODO: add a check if the user is already in a session, if he is, put him in there
+        //    {
         //        if (!_userPlayerKey.ContainsKey(name))
         //            _userPlayerKey.Add(name, user);
         //        else
@@ -372,7 +382,6 @@ namespace Network
 
 
 
-            // TODO: send info to both players about who they play against, which involves their victories as well
             var player1Connection = _userTcpKey[player1.Username];
             var player2Connection = _userTcpKey[player2.Username];
             // This is for starting the battle. Broadcast
@@ -389,7 +398,6 @@ namespace Network
         }
 
         #endregion
-        // TODO: Add checks if user is able to call a method by checking if he is in session, etc.
         #region MethodsToCall
         /// <summary>
         /// 
@@ -608,7 +616,13 @@ namespace Network
                     {
                         result = 6;
                         // TODO: victory logic, clear the room ,move the player, etc.
+                        var enemyPlayer = session.GetEnemyParticipant(player).Player;
                         _login.SaveAccount(player);
+                        _userSessionKey.Remove(player.Username);
+                        _userSessionKey.Remove(enemyPlayer.Username);
+                        _sessionDatas.Remove(session);
+
+
                         break;
                     }
 

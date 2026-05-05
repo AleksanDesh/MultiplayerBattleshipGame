@@ -26,15 +26,18 @@ namespace View
         [SerializeField] private TMP_Text EnemyVictoriesText;
 
         [Tooltip("When server says that the battle starts (building phase)")]
-        [SerializeField] public UnityEvent JoiningBattleEvent;
+        [SerializeField] public UnityEvent OnJoiningBattleEvent;
         [Tooltip("When server confirms enqueuing for battle")]
-        [SerializeField] public UnityEvent EnqueueingForBattle;
+        [SerializeField] public UnityEvent OnEnqueueingForBattle;
 
 
         [Tooltip("When server says that the battle starts")]
-        public UnityEvent BattleStarted;
+        public UnityEvent OnBattleStarted;
         [Tooltip("When server confirms pressing ready in the battle")]
-        public UnityEvent BattleReady;
+        public UnityEvent OnBattleReady;
+
+        public UnityEvent OnVictoryEvent;
+        public UnityEvent OnLoseEvent;
 
         public GridManager UserGrid;
         public GridManager EnemyGrid;
@@ -94,14 +97,14 @@ namespace View
             {
                 case 0:
                     {
-                        BattleReady?.Invoke();
+                        OnBattleReady?.Invoke();
                         _resultText.text = $"Waiting for the other party...";
                         break;
                     }
                 case 1:
                     {
-                        BattleReady?.Invoke();
-                        BattleStarted?.Invoke();
+                        OnBattleReady?.Invoke();
+                        OnBattleStarted?.Invoke();
                         _resultText.text = $"Starting battle...";
                         break;
                     }
@@ -136,7 +139,7 @@ namespace View
             {
                 case 0:
                     {
-                        EnqueueingForBattle?.Invoke();
+                        OnEnqueueingForBattle?.Invoke();
                         _resultText.text = $"Enqueued sucessefully!";
                         break;
                     }
@@ -156,7 +159,7 @@ namespace View
 
         void StartBattle(BattleStartPckg package)
         { // TODO: READ WHO'S TURN IT IS
-            JoiningBattleEvent?.Invoke();
+            OnJoiningBattleEvent?.Invoke();
             UserGrid.StartBattle(package.BoardSize, package.BoardSize);
             var ships = Instantiate(ShipPresets[package.ShipPreset - 1], UserGrid.transform); // spawn the preset at the view location
             ships.transform.position = ShipSpawnLocation.position;
@@ -221,7 +224,10 @@ namespace View
 
         void VictoryResult(bool isWinner)
         {// TODO: if true, we won, if not -> enemy
-
+            if (isWinner)
+                OnVictoryEvent?.Invoke();
+            else
+                OnLoseEvent?.Invoke();
         }
 
         private void ShowResult(string message)

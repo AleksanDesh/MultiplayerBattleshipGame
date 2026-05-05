@@ -202,7 +202,7 @@ public class GridManager : MonoBehaviour
     public void DestroyAllTiles()
     {
         foreach (var tile in _locTileKey.Values)
-            Destroy(tile.gameObject);
+            Destroy(tile?.gameObject);
         _locTileKey.Clear();
     }
 }

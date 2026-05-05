@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace Controller
 {
@@ -16,9 +17,9 @@ namespace Controller
         [SerializeField] private TMP_InputField _username;
         [SerializeField] private TMP_InputField _password;
 
-        [Header("Inputs")]
-        [SerializeField] private TMP_InputField _xInput;
-        [SerializeField] private TMP_InputField _yInput;
+        public UnityEvent JoiningEvent;
+        public UnityEvent EnqueuedEvent;
+        
         public string Username => _username.text;
 
         Client _networkClient;
@@ -43,7 +44,7 @@ namespace Controller
 
         private void Update()
         {
-            _gridPlacement.UpdateGrids();
+            _gridPlacement?.UpdateGrids();
         }
 
         #region ButtonMethods
@@ -51,7 +52,7 @@ namespace Controller
         public void BtnJoin()
         {
             if (IsJoiningRunning) return;
-            Join();
+            Login();
         }
 
         bool IsRegisteringRunning = false;
@@ -67,12 +68,12 @@ namespace Controller
         public void BtnPlaceMine()
         {
             if (IsPlaceMineRunning) return;
-            if (!TryReadCoordinates(out var x, out var y))
-            {
-                Debug.LogWarning($"SeaBattleController: Invalid coodinates");
-                return;
-            }
-            PlaceMine(x, y);
+            //if (!TryReadCoordinates(out var x, out var y))
+            //{
+               // Debug.LogWarning($"SeaBattleController: Invalid coodinates");
+                //return;
+            //}
+            //PlaceMine(x, y);
         }
 
         bool IsBombRunning = false;
@@ -99,7 +100,7 @@ namespace Controller
 
         #region CalledButtonMethods
 
-        private async void Join()
+        private async void Login()
         {
             IsJoiningRunning = true;
             try
@@ -113,7 +114,7 @@ namespace Controller
                 if (connected == 0)
                 {
                     // TODO: make the joining logic here
-
+                    JoiningEvent?.Invoke();
                 }
             }
             finally
@@ -135,7 +136,7 @@ namespace Controller
                 if (connected == 0)
                 {
                     // TODO: make the joining logic here
-
+                    JoiningEvent?.Invoke();
                 }
             }
             finally
@@ -208,6 +209,10 @@ namespace Controller
             try
             {
                 int result = await _networkClient.Enqueue();
+                if (result == 0)
+                {
+                    EnqueuedEvent?.Invoke();
+                }
                 //Debug.Log($"Controller: The result of pressing Enqueue is {result}");
             }
             finally
@@ -220,17 +225,7 @@ namespace Controller
 
 
         #region Helpers
-        private bool TryReadCoordinates(out int x, out int y)
-        {
-            x = 0;
-            y = 0;
 
-            if (_xInput == null || _yInput == null)
-                return false;
-
-            return int.TryParse(_xInput.text, out x) &&
-                   int.TryParse(_yInput.text, out y);
-        }
         #endregion
 
     }
