@@ -100,7 +100,7 @@ namespace Model
             throw new InvalidOperationException("Player is not part of this session");
         }
 
-        public SessionParticipant GetEnemyParticipant(PlayerData player)
+        public bool TryGetEnemyParticipant(PlayerData player, out SessionParticipant? participant)
         {
             PlayerSide otherSide = GetSide(player) == PlayerSide.First
                 ? PlayerSide.Second
@@ -108,10 +108,13 @@ namespace Model
             foreach (var otherParticipant in _participants)
             {
                 if (otherParticipant.Side == otherSide)
-                    return otherParticipant;
+                {
+                    participant = otherParticipant;
+                    return true;
+                }
             }
-                
-            throw new InvalidOperationException("Player is not part of this session");
+            participant = null;
+            return false;
         }
         /// <summary>
         /// If returns true => battle has started

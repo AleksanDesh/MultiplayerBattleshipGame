@@ -6,7 +6,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using UnityEngine;
-using static UnityEngine.Rendering.DebugUI.Table;
+using System.IO;
 
 namespace Network
 {
@@ -18,6 +18,11 @@ namespace Network
         public IPAddress ServerIP = IPAddress.Loopback;// IPAddress.Parse("");//IPAddress.Loopback;
         TcpNetworkConnection _connection;
         OSCDispatcher _dispatcher;
+        public delegate void ServerUnavailableEvent(string reason);
+        public event ServerUnavailableEvent OnServerUnavailable;
+
+        private TcpClient _tcpClient;
+        private bool _serverUnavailableRaised;
 
         // Answer if the login was sucesseful
         private TaskCompletionSource<int> _tcsLogin;
@@ -136,13 +141,63 @@ namespace Network
             DontDestroyOnLoad(gameObject);
             Connect(); // TODO: make the connection happen in a different place?
         }
+        private void OnDisable() => ShutdownConnection();
+        private void OnDestroy() => ShutdownConnection();
+        private void OnApplicationQuit() => ShutdownConnection();
+
+        private void ShutdownConnection()
+        {
+            try { _connection?.Close(); } catch { }
+            try { _tcpClient?.Close(); } catch { }
+
+            _connection = null;
+            _tcpClient = null;
+        }
+
+        private void FailConnection(string reason, Exception ex = null)
+        {
+            if (_serverUnavailableRaised)
+                return;
+
+            _serverUnavailableRaised = true;
+
+            var ioEx = ex == null ? new IOException(reason) : new IOException(reason, ex);
+
+            _tcsLogin?.TrySetException(ioEx);
+            _tcsRegister?.TrySetException(ioEx);
+            _pendingShipPlacement?.Tcs?.TrySetException(ioEx);
+            _pendingMinePlacement?.Tcs?.TrySetException(ioEx);
+            _pendingBombing?.Tcs?.TrySetException(ioEx);
+            _tcsMarkReady?.TrySetException(ioEx);
+            _tcsEnqueue?.TrySetException(ioEx);
+
+            _tcsLogin = null;
+            _tcsRegister = null;
+            _pendingShipPlacement = null;
+            _pendingMinePlacement = null;
+            _pendingBombing = null;
+            _tcsMarkReady = null;
+            _tcsEnqueue = null;
+
+            if (ex != null) Debug.LogException(ex);
+            else Debug.LogWarning(reason);
+
+            ShutdownConnection();
+            OnServerUnavailable?.Invoke(reason);
+        }
+
         public bool Connect(int port = 5376)
         {
             try
             {
-                TcpClient client = new TcpClient();
-                client.Connect(new IPEndPoint(ServerIP, port));
-                _connection = new TcpNetworkConnection(client);
+                ShutdownConnection();
+                _serverUnavailableRaised = false;
+
+                _tcpClient = new TcpClient();
+                _tcpClient.Connect(new IPEndPoint(ServerIP, port));
+
+                _connection = new TcpNetworkConnection(_tcpClient);
+
                 Debug.Log("Client: Connecting with client to server " + ServerIP);
 
                 _dispatcher = new OSCDispatcher();
@@ -153,83 +208,149 @@ namespace Network
             catch (Exception exp)
             {
                 Debug.LogException(exp);
+                ShutdownConnection();
                 return false;
             }
         }
 
         #region sendingMessages
+        private bool TrySend(OSCMessageOut message, string operation)
+        {
+            if (_connection == null)
+            {
+                FailConnection($"{operation} failed: no active connection.");
+                return false;
+            }
 
+            try
+            {
+                _connection.Send(message.GetBytes());
+                return true;
+            }
+            catch (Exception ex)
+            {
+                FailConnection($"{operation} failed: server is unavailable.", ex);
+                return false;
+            }
+        }
 
         public Task<int> Login(string username, string password)
         {
-            _tcsLogin = new TaskCompletionSource<int>();
-            //OSCMessageOut message = new OSCMessageOut("/MakeMove").AddInt(row).AddInt(col);
-            OSCMessageOut message = new OSCMessageOut("/Login").AddString(username).AddString(password);
-            _connection?.Send(message.GetBytes());
-            return _tcsLogin.Task;
+            _tcsLogin = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = _tcsLogin;
+
+            var message = new OSCMessageOut("/Login").AddString(username).AddString(password);
+            if (!TrySend(message, "Login"))
+                return tcs.Task;
+
+            return tcs.Task;
         }
 
         public Task<int> Register(string username, string password)
         {
-            _tcsRegister = new TaskCompletionSource<int>();
+            _tcsRegister = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = _tcsRegister;
 
-            OSCMessageOut message = new OSCMessageOut("/Register").AddString(username).AddString(password);
-            _connection?.Send(message.GetBytes());
-            return _tcsRegister.Task;
+            var message = new OSCMessageOut("/Register").AddString(username).AddString(password);
+            if (!TrySend(message, "Register"))
+                return tcs.Task;
+
+            return tcs.Task;
         }
 
         public Task<int> PlaceShip(int x, int y, Ship ship)
         {
             _pendingShipPlacement = new PendingShipPlacement(x, y, ship);
-            // TODO: Add different sized ship details
-            OSCMessageOut message = new OSCMessageOut("/PlaceShip").AddInt(ship.Id).AddInt(x).AddInt(y).AddInt(ship.Length).AddBool(ship.Vertical);
-            _connection?.Send(message.GetBytes());
-            return _pendingShipPlacement.Tcs.Task;
+            var tcs = _pendingShipPlacement.Tcs;
+
+            var message = new OSCMessageOut("/PlaceShip")
+                .AddInt(ship.Id)
+                .AddInt(x)
+                .AddInt(y)
+                .AddInt(ship.Length)
+                .AddBool(ship.Vertical);
+
+            if (!TrySend(message, "PlaceShip"))
+                return tcs.Task;
+
+            return tcs.Task;
         }
 
         public Task<int> PlaceMine(int x, int y)
         {
             _pendingMinePlacement = new PendingMinePlacement(x, y);
-            // TODO: Add different sized ship details
-            OSCMessageOut message = new OSCMessageOut("/PlaceMine").AddInt(x).AddInt(y);
-            _connection?.Send(message.GetBytes());
-            return _pendingMinePlacement.Tcs.Task;
+            var tcs = _pendingMinePlacement.Tcs;
+
+            var message = new OSCMessageOut("/PlaceMine").AddInt(x).AddInt(y);
+            if (!TrySend(message, "PlaceMine"))
+                return tcs.Task;
+
+            return tcs.Task;
         }
 
         public Task<int> Bomb(int x, int y)
         {
             _pendingBombing = new Bombpckg(x, y, -2, true);
-            OSCMessageOut message = new OSCMessageOut("/Bomb").AddInt(x).AddInt(y);
-            _connection?.Send(message.GetBytes());
-            return _pendingBombing.Tcs.Task;
+            var tcs = _pendingBombing.Tcs;
+
+            var message = new OSCMessageOut("/Bomb").AddInt(x).AddInt(y);
+            if (!TrySend(message, "Bomb"))
+                return tcs.Task;
+
+            return tcs.Task;
         }
 
         public Task<int> MarkReady()
         {
-            _tcsMarkReady = new TaskCompletionSource<int>();
-            OSCMessageOut message = new OSCMessageOut("/MarkReady");
-            _connection?.Send(message.GetBytes());
-            return _tcsMarkReady.Task;
+            _tcsMarkReady = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = _tcsMarkReady;
+
+            var message = new OSCMessageOut("/MarkReady");
+            if (!TrySend(message, "MarkReady"))
+                return tcs.Task;
+
+            return tcs.Task;
         }
 
         public Task<int> Enqueue()
         {
-            _tcsEnqueue = new TaskCompletionSource<int>();
-            OSCMessageOut message = new OSCMessageOut("/Enqueue");
-            _connection?.Send(message.GetBytes());
-            return _tcsEnqueue.Task;
+            _tcsEnqueue = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = _tcsEnqueue;
+
+            var message = new OSCMessageOut("/Enqueue");
+            if (!TrySend(message, "Enqueue"))
+                return tcs.Task;
+
+            return tcs.Task;
         }
         #endregion
 
         // Update is called once per frame
         void Update()
         {
-            // Check for incoming packets, and deal with them:
-            while (_connection != null && _connection.Available() > 0)
+            if (_connection == null || _tcpClient == null)
+                return;
+
+            try
             {
-                HandlePacket(_connection.GetPacket(), _connection.Remote);
+                var socket = _tcpClient.Client;
+
+                // Detect a graceful remote close.
+                if (socket != null && socket.Poll(0, SelectMode.SelectRead) && socket.Available == 0)
+                {
+                    FailConnection("Server closed the connection.");
+                    return;
+                }
+
+                while (_connection.Available() > 0)
+                {
+                    HandlePacket(_connection.GetPacket(), _connection.Remote);
+                }
             }
-            // TODO: disconnect handling
+            catch (Exception ex)
+            {
+                FailConnection("Lost connection to server.", ex);
+            }
         }
 
         // TODO: Make every method call the view error display,

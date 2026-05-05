@@ -25,7 +25,7 @@ namespace Model
         public int TopScore { get; private set; }
 
         [JsonIgnore]
-        public PlayerSessionState SessionState { get; private set; }
+        public PlayerSessionState SessionState { get; private set; } = PlayerSessionState.InMenu;
 
         [JsonConstructor]
         public PlayerData(int id, string username, string password, int topScore = 0)
@@ -48,6 +48,10 @@ namespace Model
         public PlayerData(string username, string password, int topScore = 0)
             : this(Interlocked.Increment(ref _nextId), username, password, topScore)
         {
+        }
+        public void SetSessionState(PlayerSessionState state)
+        {
+            SessionState = state;
         }
 
         public bool UpdateTopScore(int newScore)

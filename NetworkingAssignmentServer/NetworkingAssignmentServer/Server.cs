@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Numerics;
+using static Model.PlayerData;
 using static Model.SeaBattleBehavior;
 
 namespace Network
@@ -68,9 +69,12 @@ namespace Network
                 TcpClient client = _listener.AcceptTcpClient();
                 TcpNetworkConnection connection = new TcpNetworkConnection(client);
                 IPEndPoint remoteEndPoint = (IPEndPoint)client.Client.RemoteEndPoint!;
+
                 _allConnections.Add(connection);
                 _unloggedConnections.Add(connection);
-                _ipEndToTcpNetKey.Add(remoteEndPoint, connection);
+
+                // Keep the latest socket for this endpoint.
+                _ipEndToTcpNetKey[remoteEndPoint] = connection;
 
                 // TODO: store in _ipBlah dictionary (and use it)
                 OSCLog.WriteLine("Server: Adding new connection from " + connection.Remote);
@@ -78,10 +82,49 @@ namespace Network
         }
         void UpdateConnections()
         {
-            foreach (TcpNetworkConnection conn in _allConnections)
-                while (conn.Available() > 0)
-                    HandlePacket(conn.GetPacket(), conn.Remote);
+            // Snapshot so disconnects do not invalidate enumeration.
+            foreach (TcpNetworkConnection conn in _allConnections.ToArray())
+            {
+                try
+                {
+                    if (conn.IsDisconnected)
+                    {
+                        DisconnectConnection(conn, "Remote closed the connection");
+                        continue;
+                    }
+
+                    while (conn.Available() > 0)
+                        HandlePacket(conn.GetPacket(), conn.Remote);
+                }
+                catch (System.Exception ex) when (
+                    ex is SocketException ||
+                    ex is IOException ||
+                    ex is ObjectDisposedException)
+                {
+                    DisconnectConnection(conn, ex.Message);
+                }
+            }
         }
+        #region Helpers
+
+        private string HandleBattleException(string username, string action, Exception ex, out int result)
+        {
+            result = -1;
+
+            if (ex is ArgumentNullException ||
+                ex is ArgumentException ||
+                ex is ArgumentOutOfRangeException ||
+                ex is InvalidOperationException ||
+                ex is NotImplementedException)
+            {
+                OSCLog.WriteLine($"Server: {action} failed for {username}: {ex.Message}");
+                return ex.Message;
+            }
+
+            OSCLog.WriteLine($"Server: Unexpected {action} error for {username}: {ex}");
+            return "Server error";
+        }
+
         void HandlePacket(byte[] packet, IPEndPoint remote)
         {
             OSCMessageIn mess = new OSCMessageIn(packet);
@@ -89,7 +132,98 @@ namespace Network
 
             _dispatcher.HandlePacket(packet, remote);
         }
+        bool TryGetConnection(IPEndPoint remote, out TcpNetworkConnection connection)
+        {
+            if (_ipEndToTcpNetKey.TryGetValue(remote, out connection))
+                return true;
 
+            OSCLog.WriteLine($"Server: No connection found for {remote}");
+            return false;
+        }
+
+        bool TryGetPlayer(TcpNetworkConnection connection, out PlayerData player)
+        {
+            if (_tcpNetPlayerKey.TryGetValue(connection, out player))
+                return true;
+
+            OSCLog.WriteLine($"Server: Connection {connection.Remote} is not logged in");
+            return false;
+        }
+
+        void RemoveQueuedPlayer(PlayerData player)
+        {
+            // Queue has no Remove, so rebuild it safely.
+            if (_playerQueue.Count == 0)
+                return;
+
+            Queue<PlayerData> newQueue = new Queue<PlayerData>();
+
+            while (_playerQueue.Count > 0)
+            {
+                PlayerData queuedPlayer = _playerQueue.Dequeue();
+
+                if (queuedPlayer.Username != player.Username)
+                    newQueue.Enqueue(queuedPlayer);
+            }
+
+            _playerQueue = newQueue;
+        }
+
+        void DisconnectConnection(TcpNetworkConnection connection, string reason)
+        {
+            // Cache the player first, because the dictionaries may be cleaned below.
+            PlayerData? player = null;
+            if (_tcpNetPlayerKey.TryGetValue(connection, out var foundPlayer))
+                player = foundPlayer;
+
+            _allConnections.Remove(connection);
+            _unloggedConnections.Remove(connection);
+
+            if (player != null)
+            {
+                _tcpNetPlayerKey.Remove(connection);
+                _userTcpKey.Remove(player.Username);
+                _connectedPlayersMap.Remove(player);
+                _connectedPlayersList.RemoveAll(p => p.Username == player.Username);
+
+                if (player.SessionState == PlayerSessionState.InQueue)
+                {
+                    // Queued users are removed completely.
+                    RemoveQueuedPlayer(player);
+                    player.SetSessionState(PlayerSessionState.InMenu); // fully disconnected
+                }
+                else if (player.SessionState != PlayerSessionState.InGame)
+                {
+                    player.SetSessionState(PlayerSessionState.InMenu); // disconnected outside battle, back to menu state
+                }
+
+                // Keep the session mapping only for in-battle reconnects.
+                // This deliberately does not remove _userSessionKey.
+
+                OSCLog.WriteLine($"Server: Disconnected {player.Username}. Reason: {reason}");
+            }
+            else
+            {
+                OSCLog.WriteLine($"Server: Disconnected unlogged connection {connection.Remote}. Reason: {reason}");
+            }
+
+            // Remove any stale endpoint mapping that still points to this connection.
+            if (_ipEndToTcpNetKey.TryGetValue(connection.Remote, out var mappedConnection) &&
+                ReferenceEquals(mappedConnection, connection))
+            {
+                _ipEndToTcpNetKey.Remove(connection.Remote);
+            }
+
+            // TODO: If TcpNetworkConnection exposes a close/dispose method, call it here.
+        }
+
+        void SendRejoinPayload(TcpNetworkConnection connection, PlayerData player, SessionData session)
+        {
+            // Intentionally empty for now.
+            // TODO: Fill this with reconnect/rejoin packet payload later.
+        }
+
+        #endregion
         //void CleanConnections()
         //{
         //
@@ -128,26 +262,14 @@ namespace Network
                 return;
 
             OSCLog.WriteLine($"Server: Received Login attempt with username {username} and password {password}");
-            bool sucess = TryUserLogin(username, password, out var result, out PlayerData? playerData);
 
-            var connection = _ipEndToTcpNetKey[remote]; // Has to be added when first connected...
+            if (!TryGetConnection(remote, out TcpNetworkConnection connection))
+                return;
+            // TODO: maybe make it store hte connection as well?
+            bool sucess = TryUserLogin(username, password, connection, out var result, out PlayerData? playerData);
 
-            //foreach (var conn in _unloggedConnections) // hm -> TODO:
-            //{
-            //    if (conn.Remote.Equals(remote))
-            //    {
-            if (sucess && playerData != null)
-            {
-                _tcpNetPlayerKey.Add(connection, playerData);
-                _userTcpKey.Add(playerData.Username, connection);
-                
-                _unloggedConnections.Remove(connection);
-            }
             OSCMessageOut reply = new OSCMessageOut("/TryJoin").AddInt(result);
             connection.Send(reply.GetBytes());
-            //        break;
-            //    }
-            //}
         }
 
         void ConnectionRegisterRequest(OSCMessageIn message, IPEndPoint remote)
@@ -155,7 +277,9 @@ namespace Network
             if (message.ReadString() is not string username || message.ReadString() is not string password)
                 return;
 
-            TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
+            if (!TryGetConnection(remote, out TcpNetworkConnection connection))
+                return;
+
             OSCLog.WriteLine($"Server: Received Register attempt with username {username} and password {password}");
             bool sucess = TryUserRegister(username, password, out var result, out PlayerData? playerData);
             OSCMessageOut reply = new OSCMessageOut("/Register").AddInt(result);
@@ -165,20 +289,40 @@ namespace Network
         void ConnectionPlaceShipRequest(OSCMessageIn message, IPEndPoint remote)
         {
             if (message.ReadInt() is not int id
-                || message.ReadInt() is not int x 
+                || message.ReadInt() is not int x
                 || message.ReadInt() is not int y
                 || message.ReadInt() is not int len)
                 return;
+
             bool rot = message.ReadBool();
+
+            if (!TryGetConnection(remote, out TcpNetworkConnection connection) ||
+                !TryGetPlayer(connection, out PlayerData player))
+                return;
+
             Vector2 coordinates = new Vector2(x, y);
             Ship ship = new Ship(coordinates, len, rot, id);
-            TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
-            var player = _tcpNetPlayerKey[connection];
-            string debug = PlaceShip(player.Username, ship, out int result);
+
+            int result;
+            string debug;
+
+            try
+            {
+                debug = PlaceShip(player.Username, ship, out result);
+            }
+            catch (Exception ex) when (
+                ex is ArgumentNullException ||
+                ex is ArgumentException ||
+                ex is ArgumentOutOfRangeException ||
+                ex is InvalidOperationException ||
+                ex is NotImplementedException)
+            {
+                debug = HandleBattleException(player.Username, "PlaceShip", ex, out result);
+            }
+
             OSCLog.WriteLine(debug);
             OSCMessageOut reply = new OSCMessageOut("/PlaceShip").AddInt(result);
             connection.Send(reply.GetBytes());
-
         }
 
         void ConnectionPlaceMineRequest(OSCMessageIn message, IPEndPoint remote)
@@ -186,63 +330,154 @@ namespace Network
             if (message.ReadInt() is not int x || message.ReadInt() is not int y)
                 return;
 
+            if (!TryGetConnection(remote, out TcpNetworkConnection connection) ||
+                !TryGetPlayer(connection, out PlayerData player))
+                return;
+
             int[] coordinates = new int[2] { x, y };
-            TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
-            var player = _tcpNetPlayerKey[connection];
-            string debug = PlaceMine(player.Username, coordinates, out int result);
+
+            int result;
+            string debug;
+
+            try
+            {
+                debug = PlaceMine(player.Username, coordinates, out result);
+            }
+            catch (Exception ex) when (
+                ex is ArgumentNullException ||
+                ex is ArgumentException ||
+                ex is ArgumentOutOfRangeException ||
+                ex is InvalidOperationException ||
+                ex is NotImplementedException)
+            {
+                debug = HandleBattleException(player.Username, "PlaceMine", ex, out result);
+            }
+
             OSCLog.WriteLine(debug);
             OSCMessageOut reply = new OSCMessageOut("/PlaceMine").AddInt(result);
             connection.Send(reply.GetBytes());
-
         }
 
         void ConnectionBombRequest(OSCMessageIn message, IPEndPoint remote)
         {
             if (message.ReadInt() is not int x || message.ReadInt() is not int y)
                 return;
+
+            if (!TryGetConnection(remote, out TcpNetworkConnection connection) ||
+                !TryGetPlayer(connection, out PlayerData player))
+                return;
+
             int[] coordinates = new int[2] { x, y };
-            TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
 
-            //Dictionaries can be cleaned in the Bomb() method
-            var player = _tcpNetPlayerKey[connection];
-            var session = _userSessionKey[player.Username];
-            var enemyPlayer = session.GetEnemyParticipant(player).Player;
-            var enemyConnection = _userTcpKey[enemyPlayer.Username];
+            if (!_userSessionKey.TryGetValue(player.Username, out var session))
+                return;
 
-            string debug = Bomb(player.Username, coordinates, out int result);
+            if (!_userTcpKey.TryGetValue(player.Username, out var activeConnection) ||
+                !ReferenceEquals(activeConnection, connection))
+                return;
+
+            if (!session.TryGetEnemyParticipant(player, out var participant))
+            {
+                OSCLog.WriteLine($"Server: No enemy participant found for {player.Username}");
+                return;
+            }
+
+            var enemyPlayer = participant?.Player;
+            if (enemyPlayer == null)
+            {
+                OSCLog.WriteLine($"Server: {participant} does not have PlayerData.");
+                return;
+            }
+
+            int result;
+            string debug;
+
+            try
+            {
+                debug = Bomb(player.Username, coordinates, out result);
+            }
+            catch (Exception ex) when (
+                ex is ArgumentNullException ||
+                ex is ArgumentException ||
+                ex is ArgumentOutOfRangeException ||
+                ex is InvalidOperationException ||
+                ex is NotImplementedException)
+            {
+                debug = HandleBattleException(player.Username, "Bomb", ex, out result);
+            }
+
             OSCLog.WriteLine(debug);
-            OSCMessageOut reply = new OSCMessageOut("/Bomb").AddInt(result).AddInt(coordinates[0]).AddInt(coordinates[1]).AddBool(true); // bool if this is for enemy tile
+
+            OSCMessageOut reply = new OSCMessageOut("/Bomb")
+                .AddInt(result)
+                .AddInt(coordinates[0])
+                .AddInt(coordinates[1])
+                .AddBool(true);
+
             connection.Send(reply.GetBytes());
 
             if (result == 0 || result == 3 || result == 4)
             {
-                OSCMessageOut enemyInform = new OSCMessageOut("/Bomb").AddInt(result).AddInt(coordinates[0]).AddInt(coordinates[1]).AddBool(false);
-                enemyConnection.Send(enemyInform.GetBytes());
+                if (_userTcpKey.TryGetValue(enemyPlayer.Username, out var enemyConnection))
+                {
+                    OSCMessageOut enemyInform = new OSCMessageOut("/Bomb")
+                        .AddInt(result)
+                        .AddInt(coordinates[0])
+                        .AddInt(coordinates[1])
+                        .AddBool(false);
+
+                    enemyConnection.Send(enemyInform.GetBytes());
+                }
             }
-            
             else if (result == 6)
             {
-                OSCMessageOut enemyPlayerMessage = new OSCMessageOut("/Victory").AddBool(false); // enemy lost
-                OSCMessageOut playerMessage = new OSCMessageOut("/Victory").AddBool(true); // this player won
+                OSCMessageOut enemyPlayerMessage = new OSCMessageOut("/Victory").AddBool(false);
+                OSCMessageOut playerMessage = new OSCMessageOut("/Victory").AddBool(true);
+
                 connection.Send(playerMessage.GetBytes());
-                enemyConnection.Send(enemyPlayerMessage.GetBytes());
+
+                if (_userTcpKey.TryGetValue(enemyPlayer.Username, out var enemyConnection))
+                    enemyConnection.Send(enemyPlayerMessage.GetBytes());
             }
         }
 
         void ConnectionMarkReadyRequest(OSCMessageIn message, IPEndPoint remote)
         {
-            TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
-            var player = _tcpNetPlayerKey[connection];
-            string debug = MarkReady(player.Username, out int result);
+            if (!TryGetConnection(remote, out TcpNetworkConnection connection) ||
+                !TryGetPlayer(connection, out PlayerData player))
+                return;
+
+            int result;
+            string debug;
+
+            try
+            {
+                debug = MarkReady(player.Username, out result);
+            }
+            catch (Exception ex) when (
+                ex is KeyNotFoundException ||
+                ex is ArgumentNullException ||
+                ex is ArgumentException ||
+                ex is ArgumentOutOfRangeException ||
+                ex is InvalidOperationException ||
+                ex is NotImplementedException)
+            {
+                debug = HandleBattleException(player.Username, "MarkReady", ex, out result);
+            }
+
             OSCLog.WriteLine(debug);
             OSCMessageOut reply = new OSCMessageOut("/MarkReady").AddInt(result);
             connection.Send(reply.GetBytes());
+
             if (result == 1)
             {
-                var session = _userSessionKey[player.Username];
-                var enemyPlayer = session.GetEnemyParticipant(player).Player;
-                var enemyConnection = _userTcpKey[enemyPlayer.Username];
-                enemyConnection.Send(reply.GetBytes());
+                if (_userSessionKey.TryGetValue(player.Username, out var session) &&
+                    session.TryGetEnemyParticipant(player, out var enemyParticipant))
+                {
+                    var enemyPlayer = enemyParticipant.Player;
+                    if (_userTcpKey.TryGetValue(enemyPlayer.Username, out var enemyConnection))
+                        enemyConnection.Send(reply.GetBytes());
+                }
             }
         }
         // We receive name, the oponent's victories coumt, ship preset (or game preset)
@@ -251,18 +486,23 @@ namespace Network
         // board size
         void ConnectionEnqueueRequest(OSCMessageIn message, IPEndPoint remote)
         {// TODO: check if already in a session or inapropriate state
-            // OR (PB): TODO: Use Rooms for a clean separation :-)   (See BC3, slide 43)
+         // OR (PB): TODO: Use Rooms for a clean separation :-)   (See BC3, slide 43)
             int result = -1;
-            TcpNetworkConnection connection = _ipEndToTcpNetKey[remote];
+
+            if (!TryGetConnection(remote, out TcpNetworkConnection connection))
+                return;
+
             if (_tcpNetPlayerKey.TryGetValue(connection, out var player))
             {
                 result = 0;
+                player.SetSessionState(PlayerSessionState.InQueue);
                 _playerQueue.Enqueue(player);
                 OSCLog.WriteLine($"Server: {player.Username} enqueued sucessefully." +
                     $" Queue consists of {_playerQueue.Count} players");
             }
             else
                 result = 1;
+
             OSCMessageOut reply = new OSCMessageOut("/Enqueue").AddInt(result);
             connection.Send(reply.GetBytes());
         }
@@ -282,27 +522,44 @@ namespace Network
         /// 3 = wrong password
         /// </param>
         /// <returns></returns>
-        bool TryUserLogin(string username, string password, out int result, out PlayerData? playerData)
+        bool TryUserLogin(string username, string password, TcpNetworkConnection connection, out int result, out PlayerData? playerData)
         {
             result = -1;
+
             bool sucess = _login.LoginUser(username, password, out PlayerData? user);
             playerData = user;
+
             if (sucess && user != null)
             {
-                if (!_userPlayerKey.ContainsKey(username))
-                    _userPlayerKey.Add(username, user);
-                else
+                if (_userTcpKey.TryGetValue(username, out var existingConnection) &&
+                    !ReferenceEquals(existingConnection, connection))
                 {
-                    OSCLog.WriteLine($"Server: !!!! Trying to connect already connected user {username}");
-                    result = 1;
-                    return false;
+                    // Replace the previous socket for this user.
+                    DisconnectConnection(existingConnection, "Replaced by a new login");
                 }
+
+                _userPlayerKey[username] = user;
+
                 _connectedPlayersMap.Add(user);
-                _connectedPlayersList.Add(user);
-                // Enqueue immediately
-                //_playerQueue.Enqueue(user);
+                if (!_connectedPlayersList.Exists(p => p.Username == user.Username))
+                    _connectedPlayersList.Add(user);
+
+                _tcpNetPlayerKey[connection] = user;
+                _userTcpKey[username] = connection;
+                _unloggedConnections.Remove(connection);
+
+                if (_userSessionKey.ContainsKey(username))
+                    user.SetSessionState(PlayerSessionState.InGame);
+                else
+                    user.SetSessionState(PlayerSessionState.InMenu);
+
                 OSCLog.WriteLine($"Server: {username} connected succesefully");
                 result = 0;
+
+                // Existing session means this is a reconnect/rejoin after disconnect or kick.
+                if (user.SessionState == PlayerSessionState.InGame && _userSessionKey.TryGetValue(username, out var session))
+                    SendRejoinPayload(connection, user, session);
+
                 return true;
             }
             else
@@ -314,6 +571,7 @@ namespace Network
                 }
                 else
                     result = 3;
+
                 return false;
             }
         }
@@ -358,6 +616,33 @@ namespace Network
         {
             PlayerData player1 = _playerQueue.Dequeue(); // First player
             PlayerData player2 = _playerQueue.Dequeue(); // Second player
+
+            // Check both if the connection is still valid. (If closed from unityEditor
+            // the disconnect is never detected? Only when run is pressed again???)
+            if (!_userTcpKey.TryGetValue(player1.Username, out var player1Connection) ||
+                player1Connection == null ||
+                player1Connection.Status != ConnectionStatus.Connected ||
+                player1Connection.IsDisconnected)
+            {
+                OSCLog.WriteLine($"Server: {player1.Username} is no longer connected, skipping session creation.");
+                player1.SetSessionState(PlayerSessionState.InMenu);
+                return false;
+            }
+
+            if (!_userTcpKey.TryGetValue(player2.Username, out var player2Connection) ||
+                player2Connection == null ||
+                player2Connection.Status != ConnectionStatus.Connected ||
+                player2Connection.IsDisconnected)
+            {
+                OSCLog.WriteLine($"Server: {player2.Username} is no longer connected, skipping session creation.");
+                player2.SetSessionState(PlayerSessionState.InMenu);
+
+                // Put player1 back, since they were valid.
+                _playerQueue.Enqueue(player1);
+                player1.SetSessionState(PlayerSessionState.InQueue);
+                return false;
+            }
+
             // Run some checks... (which we won't do for now)
             SessionData newSession = new SessionData(player1, player2, 3, 0);
             if (newSession == null)
@@ -378,20 +663,19 @@ namespace Network
                 // TODO: reinqueue both?
                 return false;
             }
+
             _sessionDatas.Add(newSession);
+            player1.SetSessionState(PlayerSessionState.InGame);
+            player2.SetSessionState(PlayerSessionState.InGame);
 
-
-
-            var player1Connection = _userTcpKey[player1.Username];
-            var player2Connection = _userTcpKey[player2.Username];
             // This is for starting the battle. Broadcast
-            OSCMessageOut player1Info = 
+            OSCMessageOut player1Info =
                 new OSCMessageOut("/StartBattle").AddString(player2.Username).AddInt(player2.TopScore)
                 .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length).AddBool(true); // bool if first turn
-            OSCMessageOut player2Info = 
+            OSCMessageOut player2Info =
                 new OSCMessageOut("/StartBattle").AddString(player1.Username).AddInt(player1.TopScore)
                 .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length).AddBool(false);
-            
+
             player1Connection.Send(player1Info.GetBytes());
             player2Connection.Send(player2Info.GetBytes());
             return true;
@@ -552,6 +836,7 @@ namespace Network
         /// <returns></returns>
         public string Bomb(string username, int[] location, out int result)
         {
+            result = -1;
             if (!_userSessionKey.ContainsKey(username))
             {
                 result = 5;
@@ -614,15 +899,17 @@ namespace Network
 
                 case BombingResult.Victory:
                     {
-                        result = 6;
                         // TODO: victory logic, clear the room ,move the player, etc.
-                        var enemyPlayer = session.GetEnemyParticipant(player).Player;
+                        if (!session.TryGetEnemyParticipant(player, out var participant))
+                            return message;
+                        result = 6;
+                        var enemyPlayer = participant.Player;
                         _login.SaveAccount(player);
                         _userSessionKey.Remove(player.Username);
                         _userSessionKey.Remove(enemyPlayer.Username);
                         _sessionDatas.Remove(session);
-
-
+                        player.SetSessionState(PlayerSessionState.InMenu);
+                        enemyPlayer.SetSessionState(PlayerSessionState.InMenu);
                         break;
                     }
 
