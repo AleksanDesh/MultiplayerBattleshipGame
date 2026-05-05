@@ -196,7 +196,8 @@ namespace Model
 
             var board = session.GetEnemyBoard(player);
             var participant = session.GetParticipant(player);
-            var enemyParticipant = session.GetEnemyParticipant(player);
+            if (!session.TryGetEnemyParticipant(player, out var enemyParticipant))
+                throw new InvalidOperationException("SeaBattleBehavior: you are not part of this session");
 
             if (session._participantTurn != participant.Side)
             {

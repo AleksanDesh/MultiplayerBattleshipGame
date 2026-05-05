@@ -30,8 +30,21 @@ namespace NetworkConnections {
 				return remote;
 			}
 		}
-
-		public ConnectionStatus Status { get; private set; } = ConnectionStatus.Connecting;
+        public bool IsDisconnected
+        {
+            get
+            {
+                try
+                {
+                    return socket.Client.Poll(0, SelectMode.SelectRead) && socket.Client.Available == 0;
+                }
+                catch
+                {
+                    return true;
+                }
+            }
+        }
+        public ConnectionStatus Status { get; private set; } = ConnectionStatus.Connecting;
 
 		readonly TcpClient socket;
 
@@ -173,34 +186,50 @@ namespace NetworkConnections {
 			}
 		}
 
-		/// <summary>
-		/// Returns the number of available packets. 
-		/// If non-zero, call GetPacket to retrieve the next incoming packet.
-		/// </summary>
-		public int Available() {
-			if (Status != ConnectionStatus.Connected) return 0;
-			Update();
-			return incoming.Count;
-		}
+        /// <summary>
+        /// Returns the number of available packets. 
+        /// If non-zero, call GetPacket to retrieve the next incoming packet.
+        /// </summary>
+        public int Available()
+        {
+            if (Status != ConnectionStatus.Connected) return 0;
 
-		/// <summary>
-		/// If a packet is available, this returns the first available packet.
-		/// Otherwise, returns null.
-		/// Use Available first to check whether a packet is available.
-		/// </summary>
-		public byte[] GetPacket() {
-			if (Status != ConnectionStatus.Connected) return null;
-			if (Available()>0) {
-				byte[] first = incoming.Dequeue();
-				return first;
-			}
-			return null;
-		}
+            if (IsDisconnected)
+            {
+                Status = ConnectionStatus.Disconnected;
+                ConnectionLog.WriteLine("NetworkConnection.Available: socket closed by remote");
+                return 0;
+            }
 
-		/// <summary>
-		/// Call this when done, to clean up resources.
-		/// </summary>
-		public void Close() {
+            Update();
+            return incoming.Count;
+        }
+        /// <summary>
+        /// If a packet is available, this returns the first available packet.
+        /// Otherwise, returns null.
+        /// Use Available first to check whether a packet is available.
+        /// </summary>
+        public byte[] GetPacket()
+        {
+            if (Status != ConnectionStatus.Connected) return null;
+            if (IsDisconnected)
+            {
+                Status = ConnectionStatus.Disconnected;
+                ConnectionLog.WriteLine("NetworkConnection.GetPacket: socket closed by remote");
+                return null;
+            }
+            if (Available() > 0)
+            {
+                byte[] first = incoming.Dequeue();
+                return first;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Call this when done, to clean up resources.
+        /// </summary>
+        public void Close() {
 			Status = ConnectionStatus.Disconnected;
 			socket.Close();
 		}
