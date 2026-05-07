@@ -227,7 +227,6 @@ namespace Model
                 case Cell.CellState.Ship:
                     {
                         // One bomb destroys one occupied cell, not one whole ship.
-                        // This is why victory must be based on total ship cells, not ship objects.
                         cell._state = Cell.CellState.Bombed;
                         enemyParticipant.IncrementLostShipCells();
 

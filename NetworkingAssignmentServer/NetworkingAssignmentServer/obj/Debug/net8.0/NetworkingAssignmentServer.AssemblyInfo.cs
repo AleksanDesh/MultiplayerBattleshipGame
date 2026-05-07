@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NetworkingAssignmentServer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+04b554d3cb7fef7d43c0b1ef2c5be5cb2acecf8f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+fe677ef39afa0849ca9967c53bbcef5903304c1f")]
 [assembly: System.Reflection.AssemblyProductAttribute("NetworkingAssignmentServer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NetworkingAssignmentServer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -17,8 +17,9 @@ namespace Controller
         [SerializeField] private TMP_InputField _username;
         [SerializeField] private TMP_InputField _password;
 
-        public UnityEvent JoiningEvent;
-        public UnityEvent EnqueuedEvent;
+        public UnityEvent OnJoiningEvent;
+        public UnityEvent OnRegisteringEvent;
+        public UnityEvent OnEnqueuedEvent;
         
         public string Username => _username.text;
 
@@ -114,7 +115,7 @@ namespace Controller
                 if (connected == 0)
                 {
                     // TODO: make the joining logic here
-                    JoiningEvent?.Invoke();
+                    OnJoiningEvent?.Invoke();
                 }
             }
             finally
@@ -136,7 +137,7 @@ namespace Controller
                 if (connected == 0)
                 {
                     // TODO: make the joining logic here
-                    JoiningEvent?.Invoke();
+                    OnRegisteringEvent?.Invoke();
                 }
             }
             finally
@@ -211,7 +212,7 @@ namespace Controller
                 int result = await _networkClient.Enqueue();
                 if (result == 0)
                 {
-                    EnqueuedEvent?.Invoke();
+                    OnEnqueuedEvent?.Invoke();
                 }
                 //Debug.Log($"Controller: The result of pressing Enqueue is {result}");
             }

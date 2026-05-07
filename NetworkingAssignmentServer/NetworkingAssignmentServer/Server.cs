@@ -282,7 +282,7 @@ namespace Network
 
             OSCLog.WriteLine($"Server: Received Register attempt with username {username} and password {password}");
             bool sucess = TryUserRegister(username, password, out var result, out PlayerData? playerData);
-            OSCMessageOut reply = new OSCMessageOut("/Register").AddInt(result);
+            OSCMessageOut reply = new OSCMessageOut("/TryRegister").AddInt(result);
             connection.Send(reply.GetBytes());
         }
 
@@ -576,49 +576,27 @@ namespace Network
             }
         }
 
+        /// <summary>
+        /// result values:
+        ///  0  = registration succeeded.
+        ///  1  = username is empty or whitespace.
+        ///  2  = password is empty or whitespace.
+        ///  3  = username already exists.
+        /// -1  = something unexpected happened.
+        /// playerData = the registered player on success, the existing player on duplicate username, or null otherwise.
+        /// </summary>
         bool TryUserRegister(string username, string password, out int result, out PlayerData? playerData)
         {
-            result= -1;
-            bool sucess = _login.RegisterUser(username, password, out playerData);
-
-            if (sucess)
-            {
-                result = 0;
-                return true;
-            }
-
-            return false;
+            result = _login.RegisterUser(username, password, out playerData);
+            return result == 0;
         }
-        //public bool ConnectUser(string name, string password)
-        //{ // TODO: maybe add instant data sending with the leaderboards?
-        //    bool success = _login.LoginOrCreate(name, password, out PlayerData? user);
-        //    if (user != null)
-        //    {
-        //        if (!_userPlayerKey.ContainsKey(name))
-        //            _userPlayerKey.Add(name, user);
-        //        else
-        //        {
-        //            OSCLog.WriteLine($"Server: !!!! Trying to connect already connected user {name}");
-        //            return false;
-        //        }
-        //        _connectedPlayersMap.Add(user);
-        //        _connectedPlayersList.Add(user);
-        //        // Enqueue immediately
-        //        _playerQueue.Enqueue(user);
-        //        OSCLog.WriteLine($"Server: {name} connected succesefully, added to queue");
-        //        return true;
-        //    }
-        //    else
-        //        return false;
-        //}
 
         bool TryCreateSession()
         {
             PlayerData player1 = _playerQueue.Dequeue(); // First player
             PlayerData player2 = _playerQueue.Dequeue(); // Second player
 
-            // Check both if the connection is still valid. (If closed from unityEditor
-            // the disconnect is never detected? Only when run is pressed again???)
+            // Check both if the connection is still valid.
             if (!_userTcpKey.TryGetValue(player1.Username, out var player1Connection) ||
                 player1Connection == null ||
                 player1Connection.Status != ConnectionStatus.Connected ||
@@ -643,7 +621,6 @@ namespace Network
                 return false;
             }
 
-            // Run some checks... (which we won't do for now)
             SessionData newSession = new SessionData(player1, player2, 3, 0);
             if (newSession == null)
                 return false;
@@ -660,7 +637,9 @@ namespace Network
                 if (_userSessionKey.ContainsKey(player2.Username))
                     OSCLog.WriteLine($"Server: !!!! {player2.Username} already is in session, HOW are you creating another one?");
 
-                // TODO: reinqueue both?
+                // Kick the players
+                DisconnectConnection(player1Connection, "already in session");
+                DisconnectConnection(player2Connection, "already in session");
                 return false;
             }
 
@@ -852,9 +831,9 @@ namespace Network
             catch (InvalidOperationException error)
             {
                 result = -1;
-                return error.Message;
-                //TODO: Disconnect this malicious client
-                
+                var conn = _userTcpKey[username];
+                DisconnectConnection(conn, "Malicious");
+                return error.Message;                
             }
 
             string message = $"Server: {username} " + outcome.ToString();

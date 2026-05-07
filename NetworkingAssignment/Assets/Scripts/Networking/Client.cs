@@ -26,7 +26,12 @@ namespace Network
 
         // Answer if the login was sucesseful
         private TaskCompletionSource<int> _tcsLogin;
+        public delegate void OnLoginEvent(int result);
+        public event OnLoginEvent OnLogin;
+
         private TaskCompletionSource<int> _tcsRegister;
+        public delegate void OnRegisterEvent(int result);
+        public event OnRegisterEvent OnRegister;
 
         private sealed class Location
         {
@@ -394,41 +399,15 @@ namespace Network
         void TryJoin(OSCMessageIn message, IPEndPoint remote)
         {
             int result = message.ReadInt();
+            OnLogin?.Invoke(result);
             _tcsLogin?.TrySetResult(result);
             _tcsLogin = null;
-            // For now no display of errors.
-            // TODO: Add error message pop-up whenever something goes wrong
-            switch (result)
-            {
-                case 0:
-                    {  
-                        // Ignore
-                        break;
-                    }
-                case 1:
-                    {
-                        break;
-                    }
-                case 2:
-                    {
-
-                        break;
-                    }
-                case 3:
-                    {
-                        break;
-                    }
-                default:
-                    {
-                        break;
-                    }
-
-            }
         }
 
         void TryRegister(OSCMessageIn message, IPEndPoint remote)
         {
             int result = message.ReadInt();
+            OnRegister?.Invoke(result);
             _tcsRegister?.TrySetResult(result);
             _tcsRegister = null;
         }

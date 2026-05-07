@@ -39,6 +39,9 @@ namespace View
         public UnityEvent OnVictoryEvent;
         public UnityEvent OnLoseEvent;
 
+        public UnityEvent OnLoginEvent;
+        public UnityEvent OnRegisterEvent;
+
         public GridManager UserGrid;
         public GridManager EnemyGrid;
 
@@ -76,6 +79,8 @@ namespace View
                 _controller.NetworkClient.OnBattleStarted += StartBattle;
                 _controller.NetworkClient.OnBombing += BombResult;
                 _controller.NetworkClient.OnVictory += VictoryResult;
+                _controller.NetworkClient.OnLogin += Login;
+                _controller.NetworkClient.OnRegister += Register;
             }
         }
         private void OnDisable()
@@ -87,9 +92,97 @@ namespace View
                 _controller.NetworkClient.OnBattleStarted -= StartBattle;
                 _controller.NetworkClient.OnBombing -= BombResult;
                 _controller.NetworkClient.OnVictory -= VictoryResult;
+                _controller.NetworkClient.OnLogin -= Login;
+                _controller.NetworkClient.OnRegister -= Register;
             }
         }
 
+        /// -1 = something went REALLY WRONG
+        /// 0 = sucess
+        /// 1 = user already connected
+        /// 2 = wrong username
+        /// 3 = wrong password
+        void Login(int result)
+        {
+            switch (result)
+            {
+                case 0:
+                    {
+                        _resultText.text = "Logged in sucessefully!";
+                        break;
+                    }
+                case 1:
+                    {
+                        _resultText.text = "User already connected";
+                        break;
+                    }
+                case 2:
+                    {
+                        _resultText.text = "Wrong username";
+                        break;
+                    }
+                case 3:
+                    {
+                        _resultText.text = "Wrong password";
+                        break;
+                    }
+                case -1:
+                    {
+                        _resultText.text = "Somwthing went wrong";
+                        break;
+                    }
+                default:
+                    {
+                        _resultText.text = "Unknown error";
+                        break;
+                    }
+
+            }
+        }
+
+        /// result values:
+        ///  0  = registration succeeded.
+        ///  1  = username is empty or whitespace.
+        ///  2  = password is empty or whitespace.
+        ///  3  = username already exists.
+        /// -1  = something unexpected happened.
+        void Register(int result)
+        {
+            switch (result)
+            {
+                case 0:
+                    {
+                        _resultText.text = "Registration succeeded. Please login with the same credentials";
+                        break;
+                    }
+                case 1:
+                    {
+                        _resultText.text = "Username is empty or whitespace";
+                        break;
+                    }
+                case 2:
+                    {
+                        _resultText.text = "Password is empty or whitespace";
+                        break;
+                    }
+                case 3:
+                    {
+                        _resultText.text = "Username already exists";
+                        break;
+                    }
+                case -1:
+                    {
+                        _resultText.text = "Somwthing went wrong";
+                        break;
+                    }
+                default:
+                    {
+                        _resultText.text = "Unknown error";
+                        break;
+                    }
+
+            }
+        }
 
         void MarkReadyEvent(int result)
         {

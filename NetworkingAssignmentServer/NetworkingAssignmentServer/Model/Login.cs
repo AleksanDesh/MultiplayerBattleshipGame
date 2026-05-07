@@ -64,27 +64,50 @@ namespace Model
             return false;
         }
 
-        public bool RegisterUser(string username, string password, out PlayerData? playerData)
+        /// <summary>
+        /// Registers a user.
+        /// Returns:
+        ///  0  = registration succeeded.
+        ///  1  = username is empty or whitespace.
+        ///  2  = password is empty or whitespace.
+        ///  3  = username already exists.
+        /// -1  = something unexpected happened (for example, load/save failed).
+        /// playerData = the new player on success, the existing player on duplicate username, or null on validation/unexpected failure.
+        /// </summary>
+        public int RegisterUser(string username, string password, out PlayerData? playerData)
         {
+            playerData = null;
+
             if (string.IsNullOrWhiteSpace(username))
-                throw new ArgumentException("Login username cannot be empty.", nameof(username));
+                return 1;
 
             if (string.IsNullOrWhiteSpace(password))
-                throw new ArgumentException("Login password cannot be empty.", nameof(password));
-            var players = _store.Load();
+                return 2;
 
-            playerData = players.FirstOrDefault(p =>
-                string.Equals(p.Username, username, StringComparison.OrdinalIgnoreCase));
+            try
+            {
+                var players = _store.Load();
+                if (players == null)
+                    return -1;
 
-            if (playerData != null)
-                return false;
+                playerData = players.FirstOrDefault(p =>
+                    string.Equals(p.Username, username, StringComparison.OrdinalIgnoreCase));
 
-            var newPlayer = new PlayerData(username, password);
-            players.Add(newPlayer);
-            _store.Save(players);
+                if (playerData != null)
+                    return 3;
 
-            playerData = newPlayer;
-            return true;
+                var newPlayer = new PlayerData(username, password);
+                players.Add(newPlayer);
+                _store.Save(players);
+
+                playerData = newPlayer;
+                return 0;
+            }
+            catch
+            {
+                playerData = null;
+                return -1;
+            }
         }
 
         public void SaveAccount(PlayerData player)

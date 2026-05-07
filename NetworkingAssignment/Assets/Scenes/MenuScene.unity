@@ -119,6 +119,103 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &113430411
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 113430414}
+  - component: {fileID: 113430413}
+  - component: {fileID: 113430412}
+  m_Layer: 0
+  m_Name: View
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &113430412
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 113430411}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5be6916a508aa1f46b8c4733ff08b60e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SceneLoader
+--- !u!114 &113430413
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 113430411}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b321d458beb552a49b2d4e4279e48d83, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::View.SeaBattleClientView
+  _controller: {fileID: 583730634}
+  _resultText: {fileID: 773774292}
+  EnemyUsernameText: {fileID: 0}
+  EnemyVictoriesText: {fileID: 0}
+  OnJoiningBattleEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  OnEnqueueingForBattle:
+    m_PersistentCalls:
+      m_Calls: []
+  OnBattleStarted:
+    m_PersistentCalls:
+      m_Calls: []
+  OnBattleReady:
+    m_PersistentCalls:
+      m_Calls: []
+  OnVictoryEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  OnLoseEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  OnLoginEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  OnRegisterEvent:
+    m_PersistentCalls:
+      m_Calls: []
+  UserGrid: {fileID: 0}
+  EnemyGrid: {fileID: 0}
+  ShipPresets:
+  - {fileID: 3276342976490983575, guid: e7e18ce9f3a6c334f99c16f710034c00, type: 3}
+  - {fileID: 6871316860429010420, guid: 5ffb81f817f93a74fa7601c45ecb8d15, type: 3}
+  - {fileID: 1252584097043660395, guid: c39c28defe97c0d4c87b62688884f2fa, type: 3}
+  - {fileID: 5232079633978009876, guid: 5905967608f65c64490c925c06741ebb, type: 3}
+  - {fileID: 5076612049385373908, guid: aaba30bbad52fee49b42b740bbe55e70, type: 3}
+  - {fileID: 5391060392188687758, guid: 114c91a656bfcce4f9ed58b2ca4ce9f8, type: 3}
+  ShipSpawnLocation: {fileID: 0}
+  XPrefab: {fileID: 4414142834413214405, guid: 8095dc9d9982648488df4efda630012f, type: 3}
+  BombPrefab: {fileID: 4474419765906776737, guid: 1a8db013a49ad51438fab0e592cc42f4, type: 3}
+--- !u!4 &113430414
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 113430411}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 2.7, y: 0, z: 4}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &151787960
 GameObject:
   m_ObjectHideFlags: 0
@@ -796,7 +893,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Controller.SeaBattleClientController
   _username: {fileID: 1521666939}
   _password: {fileID: 1498386377}
-  JoiningEvent:
+  OnJoiningEvent:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 485181642}
@@ -823,7 +920,22 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 1
         m_CallState: 2
-  EnqueuedEvent:
+  OnRegisteringEvent:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 636366024}
+        m_TargetAssemblyTypeName: UnityEngine.GameObject, UnityEngine
+        m_MethodName: SetActive
+        m_Mode: 6
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+  OnEnqueuedEvent:
     m_PersistentCalls:
       m_Calls: []
 --- !u!4 &583730635
@@ -2796,5 +2908,6 @@ SceneRoots:
   - {fileID: 1174377027}
   - {fileID: 1668649379}
   - {fileID: 1807309801}
+  - {fileID: 113430414}
   - {fileID: 583730635}
   - {fileID: 504471238}
