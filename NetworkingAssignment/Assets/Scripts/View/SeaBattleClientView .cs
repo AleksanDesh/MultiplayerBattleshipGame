@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using static Network.Client;
 
@@ -73,29 +74,32 @@ namespace View
 
         private void OnEnable()
         {
-            if (_controller != null)
-            {
-                _controller.NetworkClient.OnMarkReady += MarkReadyEvent;
-                _controller.NetworkClient.OnEnqueue += EnqueueEvent;
-                _controller.NetworkClient.OnBattleStarted += StartBattle;
-                _controller.NetworkClient.OnBombing += BombResult;
-                _controller.NetworkClient.OnVictory += VictoryResult;
-                _controller.NetworkClient.OnLogin += Login;
-                _controller.NetworkClient.OnRegister += Register;
-            }
+            var client = _controller?.NetworkClient;
+            if (client == null)
+                return;
+
+            client.OnMarkReady += MarkReadyEvent;
+            client.OnEnqueue += EnqueueEvent;
+            client.OnBattleStarted += StartBattle;
+            client.OnBombing += BombResult;
+            client.OnVictory += VictoryResult;
+            client.OnLogin += Login;
+            client.OnRegister += Register;
         }
+
         private void OnDisable()
         {
-            if (_controller != null)
-            {
-                _controller.NetworkClient.OnMarkReady -= MarkReadyEvent;
-                _controller.NetworkClient.OnEnqueue -= EnqueueEvent;
-                _controller.NetworkClient.OnBattleStarted -= StartBattle;
-                _controller.NetworkClient.OnBombing -= BombResult;
-                _controller.NetworkClient.OnVictory -= VictoryResult;
-                _controller.NetworkClient.OnLogin -= Login;
-                _controller.NetworkClient.OnRegister -= Register;
-            }
+            var client = _controller?.NetworkClient;
+            if (client == null)
+                return;
+
+            client.OnMarkReady -= MarkReadyEvent;
+            client.OnEnqueue -= EnqueueEvent;
+            client.OnBattleStarted -= StartBattle;
+            client.OnBombing -= BombResult;
+            client.OnVictory -= VictoryResult;
+            client.OnLogin -= Login;
+            client.OnRegister -= Register;
         }
 
         /// -1 = something went REALLY WRONG
@@ -257,6 +261,7 @@ namespace View
         void StartBattle(BattleStartPckg package)
         {
             OnJoiningBattleEvent?.Invoke();
+            Debug.Log($"Current scene {SceneManager.GetActiveScene().name}. Must be in session scene, aka 1");
             UserGrid.StartBattle(package.BoardSize, package.BoardSize);
             var ships = Instantiate(ShipPresets[package.ShipPreset - 1], UserGrid.transform); // spawn the preset at the view location
             ships.transform.position = ShipSpawnLocation.position;

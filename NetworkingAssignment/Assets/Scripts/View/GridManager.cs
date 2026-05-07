@@ -201,8 +201,29 @@ public class GridManager : MonoBehaviour
 
     public void DestroyAllTiles()
     {
+        if (_locTileKey == null)
+        {
+            Debug.LogError("_locTileKey is null");
+            return;
+        }
+
         foreach (var tile in _locTileKey.Values)
-            Destroy(tile?.gameObject);
+        {
+            if (tile == null)
+            {
+                Debug.LogWarning("Found null tile in dictionary");
+                continue;
+            }
+
+            if (tile.gameObject == null)
+            {
+                Debug.LogWarning($"Tile has no gameObject: {tile.name}");
+                continue;
+            }
+
+            Destroy(tile.gameObject);
+        }
+
         _locTileKey.Clear();
     }
 }
