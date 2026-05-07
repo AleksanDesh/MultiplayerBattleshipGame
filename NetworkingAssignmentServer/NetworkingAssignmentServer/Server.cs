@@ -223,6 +223,15 @@ namespace Network
             // Intentionally empty for now.
             // TODO: Fill this with reconnect/rejoin packet payload later.
             OSCLog.WriteLine($"User {player.Username} reconnected. Currently no logic to reconnect to the battle.");
+            if (session.TryGetEnemyParticipant(player, out var participant))
+            {// Tell the connected enemy, that he lost, so he resets the scene. This ?might? fail if the other party left as well.
+             // If both leave, and none rejoin. The session will remain cached.
+                var enemyPlayer = participant?.Player; 
+                OSCMessageOut kickMessage = new OSCMessageOut("/Victory").AddBool(false);
+                if(_userTcpKey.TryGetValue(enemyPlayer.Username, out var enemyConnection))
+                    enemyConnection.Send(kickMessage.GetBytes());   
+            }   
+            CleanupSession(session, "Disconnected user tryed to reconnect. No logic to reconnect yet, so cleaning up");
         }
 
         void StartSessionCleanupTimer(SessionData session)
@@ -938,11 +947,7 @@ namespace Network
                         result = 6;
                         var enemyPlayer = participant.Player;
                         _login.SaveAccount(player);
-                        _userSessionKey.Remove(player.Username);
-                        _userSessionKey.Remove(enemyPlayer.Username);
-                        _sessionDatas.Remove(session);
-                        player.SetSessionState(PlayerSessionState.InMenu);
-                        enemyPlayer.SetSessionState(PlayerSessionState.InMenu);
+                        CleanupSession(session, $"{player.Username} won");
                         break;
                     }
 

@@ -53,6 +53,7 @@ namespace View
         Dictionary<Tile, GameObject> _bombedTiles = new Dictionary<Tile, GameObject>();
 
 
+        bool firstTurn = false;
         private void Awake()
         {
             if (_controller == null)
@@ -198,7 +199,10 @@ namespace View
                     {
                         OnBattleReady?.Invoke();
                         OnBattleStarted?.Invoke();
-                        _resultText.text = $"Starting battle...";
+                        if (firstTurn)
+                            _resultText.text = $"Your turn, bomb";
+                        else
+                            _resultText.text = $"Enemy turn, wait";
                         break;
                     }
                 case 2:
@@ -251,7 +255,7 @@ namespace View
         }
 
         void StartBattle(BattleStartPckg package)
-        { // TODO: READ WHO'S TURN IT IS
+        {
             OnJoiningBattleEvent?.Invoke();
             UserGrid.StartBattle(package.BoardSize, package.BoardSize);
             var ships = Instantiate(ShipPresets[package.ShipPreset - 1], UserGrid.transform); // spawn the preset at the view location
@@ -260,6 +264,7 @@ namespace View
             EnemyVictoriesText.text = $"Victories: {package.EnemyVictories}";
             EnemyGrid._width = package.BoardSize;
             EnemyGrid._height = package.BoardSize;
+            firstTurn = package.Turn;
         }
 
         /// 0 = sucess
