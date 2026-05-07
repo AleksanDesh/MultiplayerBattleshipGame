@@ -33,7 +33,8 @@ namespace Network
         Dictionary<IPEndPoint, TcpNetworkConnection> _ipEndToTcpNetKey = new Dictionary<IPEndPoint, TcpNetworkConnection>();
 
 
-
+        readonly object _sessionCleanupLock = new object();
+        readonly Dictionary<int, Timer> _sessionCleanupTimers = new Dictionary<int, Timer>();
         // Queing for players, now enques all newly connected users
         Queue<PlayerData> _playerQueue = new Queue<PlayerData>();
         public static string GetLocalIPv4()
@@ -221,6 +222,59 @@ namespace Network
         {
             // Intentionally empty for now.
             // TODO: Fill this with reconnect/rejoin packet payload later.
+            OSCLog.WriteLine($"User {player.Username} reconnected. Currently no logic to reconnect to the battle.");
+        }
+
+        void StartSessionCleanupTimer(SessionData session)
+        {
+            lock (_sessionCleanupLock)
+            {
+                if (_sessionCleanupTimers.ContainsKey(session.SessionID))
+                    return;
+
+                // Reconnect window for a disconnected player.
+                var timer = new Timer(
+                    _ => CleanupSession(session, "Reconnect timeout"),
+                    null,
+                    TimeSpan.FromMinutes(1),
+                    Timeout.InfiniteTimeSpan);
+
+                _sessionCleanupTimers[session.SessionID] = timer;
+            }
+        }
+
+        void CancelSessionCleanupTimer(SessionData session)
+        {
+            lock (_sessionCleanupLock)
+            {
+                if (_sessionCleanupTimers.TryGetValue(session.SessionID, out var timer))
+                {
+                    timer.Dispose();
+                    _sessionCleanupTimers.Remove(session.SessionID);
+                }
+            }
+        }
+
+        void CleanupSession(SessionData session, string reason)
+        {
+            CancelSessionCleanupTimer(session);
+
+            var usernames = _userSessionKey
+                .Where(kvp => ReferenceEquals(kvp.Value, session))
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var username in usernames)
+            {
+                _userSessionKey.Remove(username);
+
+                if (_userPlayerKey.TryGetValue(username, out var player))
+                    player.SetSessionState(PlayerSessionState.InMenu);
+            }
+
+            _sessionDatas.Remove(session);
+
+            OSCLog.WriteLine($"Server: Session {session.SessionID} cleaned. Reason: {reason}");
         }
 
         #endregion
@@ -970,5 +1024,7 @@ namespace Network
             return message;
         }
         #endregion
+
+
     }
 }
