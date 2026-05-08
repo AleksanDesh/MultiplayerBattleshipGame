@@ -21,7 +21,8 @@ public class Tile : MonoBehaviour
     private bool _previewActive = true;
     public Vector2Int Coord { get; private set; }
     public bool IsOccupied => _occupied;
-    public bool IsEnemyTile;
+    bool _isEnemyTile;
+    public bool IsEnemyTile => _isEnemyTile;
     public State CurrentState = State.Emtpy;
 
     public enum State
@@ -37,11 +38,12 @@ public class Tile : MonoBehaviour
         _mpb = new MaterialPropertyBlock();
     }
 
-    public void Init(Vector2Int coord, bool isOffset)
+    public void Init(Vector2Int coord, bool isOffset, bool IsEnemyTile)
     {
         _originalColor = isOffset ? _offsetColor : _baseColor;
         SetColor(_originalColor);
         Coord = coord;
+        this._isEnemyTile = IsEnemyTile;
     }
 
     public void SetOccupied(bool value)

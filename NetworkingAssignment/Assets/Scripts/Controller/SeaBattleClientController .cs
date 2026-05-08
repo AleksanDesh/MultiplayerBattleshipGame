@@ -23,7 +23,7 @@ namespace Controller
         
         public string Username => _username.text;
 
-        Client _networkClient;
+        Client _networkClient; //TODO: use the Instance >client.Instance
         public Client NetworkClient => _networkClient;
         GridPlacement _gridPlacement;
 

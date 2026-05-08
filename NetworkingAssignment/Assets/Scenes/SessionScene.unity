@@ -153,6 +153,7 @@ MonoBehaviour:
   _height: 8
   _tilePrefab: {fileID: 4563123894046378595, guid: 3717392f60d2a664e9ef2c2d406453bc, type: 3}
   GenerateRegardless: 0
+  IsEnemyGrid: 1
 --- !u!4 &176292024
 Transform:
   m_ObjectHideFlags: 0
@@ -234,6 +235,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a10ef3f7e481cb49b2473990a2f3d10, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Network.Client
+  IpInput: {fileID: 0}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -1720,6 +1722,7 @@ MonoBehaviour:
   _height: 8
   _tilePrefab: {fileID: 4563123894046378595, guid: 3717392f60d2a664e9ef2c2d406453bc, type: 3}
   GenerateRegardless: 0
+  IsEnemyGrid: 0
 --- !u!4 &1460025350
 Transform:
   m_ObjectHideFlags: 0

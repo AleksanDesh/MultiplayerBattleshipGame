@@ -3,12 +3,24 @@
     "Id": 1,
     "Username": "minekillerr",
     "Password": "123456789",
-    "TopScore": 8
+    "TopScore": 10
   },
   {
     "Id": 2,
     "Username": "PC200",
     "Password": "kniga",
-    "TopScore": 1
+    "TopScore": 2
+  },
+  {
+    "Id": 3,
+    "Username": "mikelangelo",
+    "Password": "Papica",
+    "TopScore": 0
+  },
+  {
+    "Id": 4,
+    "Username": "Nik",
+    "Password": "kniga",
+    "TopScore": 0
   }
 ]

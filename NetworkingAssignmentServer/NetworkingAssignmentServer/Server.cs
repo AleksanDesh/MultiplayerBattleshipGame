@@ -77,7 +77,6 @@ namespace Network
                 // Keep the latest socket for this endpoint.
                 _ipEndToTcpNetKey[remoteEndPoint] = connection;
 
-                // TODO: store in _ipBlah dictionary (and use it)
                 OSCLog.WriteLine("Server: Adding new connection from " + connection.Remote);
             }
         }
@@ -310,7 +309,6 @@ namespace Network
         #region ConnectionRequests
         void Initialize()
         {
-            // TODO: Make ALL OF THEM CHECK IF THE INPUT IS VALID FOR THEM
             _dispatcher.AddListener("/Login", ConnectionLoginRequest, OSCUtil.STRING, OSCUtil.STRING);
             _dispatcher.AddListener("/Register", ConnectionRegisterRequest, OSCUtil.STRING, OSCUtil.STRING);
             _dispatcher.AddListener("/PlaceShip", ConnectionPlaceShipRequest, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.BOOL);
@@ -328,7 +326,7 @@ namespace Network
 
             if (!TryGetConnection(remote, out TcpNetworkConnection connection))
                 return;
-            // TODO: maybe make it store hte connection as well?
+            
             bool sucess = TryUserLogin(username, password, connection, out var result, out PlayerData? playerData);
 
             OSCMessageOut reply = new OSCMessageOut("/TryJoin").AddInt(result);
@@ -350,7 +348,7 @@ namespace Network
         }
 
         void ConnectionPlaceShipRequest(OSCMessageIn message, IPEndPoint remote)
-        {
+        {// TODO: if this fail, maybe notify the client?
             if (message.ReadInt() is not int id
                 || message.ReadInt() is not int x
                 || message.ReadInt() is not int y
@@ -550,6 +548,7 @@ namespace Network
         void ConnectionEnqueueRequest(OSCMessageIn message, IPEndPoint remote)
         {// TODO: check if already in a session or inapropriate state
          // OR (PB): TODO: Use Rooms for a clean separation :-)   (See BC3, slide 43)
+         // This is technically room.
             int result = -1;
 
             if (!TryGetConnection(remote, out TcpNetworkConnection connection))
@@ -683,7 +682,7 @@ namespace Network
                 player1.SetSessionState(PlayerSessionState.InQueue);
                 return false;
             }
-
+            //TODO: create UI element for it and make this work, comment by NIK
             SessionData newSession = new SessionData(player1, player2, 3, 0);
             if (newSession == null)
                 return false;
@@ -941,8 +940,7 @@ namespace Network
 
                 case BombingResult.Victory:
                     {
-                        // TODO: victory logic, clear the room ,move the player, etc.
-                        if (!session.TryGetEnemyParticipant(player, out var participant))
+                        if (!session.TryGetEnemyParticipant(player, out var participant) || participant == null)
                             return message;
                         result = 6;
                         var enemyPlayer = participant.Player;

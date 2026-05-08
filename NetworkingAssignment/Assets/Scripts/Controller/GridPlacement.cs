@@ -65,13 +65,12 @@ public class GridPlacement : MonoBehaviour
         {
             if (_isMyTurn && Input.GetMouseButtonDown(0) && TryGetTileUnderPointer(out var tile))
             {
-                if (_enemyGrid.TryGetTile(tile.Coord, out var enemyTile))
+                if (tile.IsEnemyTile)
                 {
-                    if (enemyTile == tile) // check just in case for some reason they are different
-                    {
-                        BombTile(tile);
-                    }
+                    //Debug.Log($"Sucessefully bombed tile {tile.name} and it is enemy tile {tile.IsEnemyTile}. Whereas world location is {tile.transform.position}");
+                    BombTile(tile);
                 }
+
             }
         }
     }

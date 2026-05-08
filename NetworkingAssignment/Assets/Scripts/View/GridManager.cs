@@ -13,6 +13,7 @@ public class GridManager : MonoBehaviour
     Dictionary<Vector2Int, Tile> _locTileKey = new Dictionary<Vector2Int, Tile>();
     HashSet<Ship> _placedShips = new HashSet<Ship>();
     public bool GenerateRegardless;
+    public bool IsEnemyGrid;
     private void Start()
     {
         if (GenerateRegardless) StartBattle(8,8);
@@ -35,7 +36,7 @@ public class GridManager : MonoBehaviour
                 var spawnedObject = Instantiate(_tilePrefab, new Vector3(x, 0, y), Quaternion.identity, this.transform);
                 spawnedObject.name = $"Tile {x} {y}";
                 bool isOffset = ((x % 2 == 0 && y % 2 != 0) || (x % 2 != 0 && y % 2 == 0));
-                spawnedObject.GetComponent<Tile>().Init(new Vector2Int(x, y), isOffset);
+                spawnedObject.GetComponent<Tile>().Init(new Vector2Int(x, y), isOffset, IsEnemyGrid);
                 _locTileKey.Add(new Vector2Int(x, y), spawnedObject.GetComponent<Tile>());
             }
         }

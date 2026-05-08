@@ -2,11 +2,12 @@ using Model;
 using NetworkConnections;
 using OSCTools;
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using TMPro;
 using UnityEngine;
-using System.IO;
 
 namespace Network
 {
@@ -14,7 +15,7 @@ namespace Network
     { // TODO: Add error displaying dictionary + make it Singleton
         public static Client Instance { get; private set; }
 
-
+        public TMP_InputField IpInput;
         public IPAddress ServerIP = IPAddress.Loopback;// IPAddress.Parse("");//IPAddress.Loopback;
         TcpNetworkConnection _connection;
         OSCDispatcher _dispatcher;
@@ -144,7 +145,14 @@ namespace Network
 
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            Connect(); // TODO: make the connection happen in a different place?
+            //Connect(); // TODO: make the connection happen in a different place?
+        }
+
+        public void ConnectBtn()
+        {
+            ServerIP = IPAddress.Parse(IpInput.text);
+
+            Connect();
         }
         private void OnDisable() => ShutdownConnection();
         private void OnDestroy() => ShutdownConnection();
