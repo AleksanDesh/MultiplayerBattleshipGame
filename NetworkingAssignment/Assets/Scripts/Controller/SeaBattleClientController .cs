@@ -190,25 +190,29 @@ namespace Controller
                 IsPlaceShipRunning = false;
             }
         }
-        private async void PlaceMine(int x, int y)
+        public async Task<bool> PlaceMine(Mine mine, int x, int y)
         {
             IsPlaceMineRunning = true;
             try
             {
-                int result = await _networkClient.PlaceMine(x, y);
+                int result = await _networkClient.PlaceMine(x, y, mine);
                 Debug.Log($"SeaBattleClientController: PlaceMine result = {result}");
+                return result == 0;
             }
             catch (TimeoutException ex)
             {
                 Debug.LogWarning($"SeaBattleClientController: PlaceMine timeout. {ex.Message}");
+                return false;
             }
             catch (IOException ex)
             {
                 Debug.LogWarning($"SeaBattleClientController: PlaceMine connection error. {ex.Message}");
+                return false;
             }
             catch (Exception ex)
             {
                 Debug.LogException(ex);
+                return false;
             }
             finally
             {

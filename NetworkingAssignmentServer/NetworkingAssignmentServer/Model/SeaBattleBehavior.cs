@@ -157,32 +157,59 @@ namespace Model
             return cells;
         }
 
-        public PlaceMineResult PlaceMine(SessionData session, PlayerData player, int[] location)
+        public PlaceMineResult PlaceMine(SessionData session, PlayerData player, Mine mine)
         {
             if (session.Phase != SessionData.GamePhase.Preparation)
                 throw new InvalidOperationException("SeaBattleBehavior: Cannot place mines after battle has started.");
-            if (location == null || location.Length < 2)
-                throw new ArgumentException("SeaBattleBehavior: Invalid location.", nameof(location));
+
+            if (mine == null)
+                throw new ArgumentNullException(nameof(mine));
 
             var board = session.GetOwnBoard(player);
             var participant = session.GetParticipant(player);
 
-            int x = location[0];
-            int y = location[1];
+            int x = (int)mine.position.X;
+            int y = (int)mine.position.Y;
+
+            bool isReplacement = participant.Mines.TryGetValue(mine.Id, out var previousMine);
+
+            int previousX = -1;
+            int previousY = -1;
+            if (isReplacement)
+            {
+                previousX = (int)previousMine.position.X;
+                previousY = (int)previousMine.position.Y;
+            }
 
             if (x < 0 || y < 0 || x >= board.Length || y >= board.Length)
                 return PlaceMineResult.OutOfBounds;
 
             var cell = board[x][y];
 
-            if (cell._state != Cell.CellState.Empty)
+            // Allow placing onto the old cell when the same mine is being moved.
+            bool isSameOldCell = isReplacement && previousX == x && previousY == y;
+
+            if (cell._state != Cell.CellState.Empty && !isSameOldCell)
                 return PlaceMineResult.CellOccupied;
 
-            if (participant.PlacedMines >= session.MaxMines)
+            // Only enforce the mine limit for brand-new mines.
+            if (!isReplacement && participant.PlacedMines >= session.MaxMines)
                 return PlaceMineResult.MineLimitReached;
 
+            // Mutate only after validation succeeds.
+            if (isReplacement)
+            {
+                var previousCell = board[previousX][previousY];
+                if (previousCell._state == Cell.CellState.Mine)
+                    previousCell._state = Cell.CellState.Empty;
+            }
+            else
+            {
+                participant.IncrementPlacedMines();
+            }
+
             cell._state = Cell.CellState.Mine;
-            participant.IncrementPlacedMines();
+            participant.Mines[mine.Id] = mine;
 
             return PlaceMineResult.Success;
         }

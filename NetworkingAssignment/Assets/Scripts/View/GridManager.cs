@@ -10,13 +10,17 @@ public class GridManager : MonoBehaviour
 
     [SerializeField] private GameObject _tilePrefab;
 
-    Dictionary<Vector2Int, Tile> _locTileKey = new Dictionary<Vector2Int, Tile>();
-    HashSet<Ship> _placedShips = new HashSet<Ship>();
+    private readonly Dictionary<Vector2Int, Tile> _locTileKey = new();
+    private readonly HashSet<Ship> _placedShips = new();
+    private readonly HashSet<Mine> _placedMines = new();
+
     public bool GenerateRegardless;
     public bool IsEnemyGrid;
+
     private void Start()
     {
-        if (GenerateRegardless) StartBattle(8,8);
+        if (GenerateRegardless)
+            StartBattle(8, 8);
     }
 
     public void StartBattle(int width, int height)
@@ -29,29 +33,33 @@ public class GridManager : MonoBehaviour
     public void GenerateGrid()
     {
         DestroyAllTiles();
+
         for (int x = 0; x < _height; x++)
         {
             for (int y = 0; y < _width; y++)
             {
-                var spawnedObject = Instantiate(_tilePrefab, new Vector3(x, 0, y), Quaternion.identity, this.transform);
+                var spawnedObject = Instantiate(_tilePrefab, new Vector3(x, 0, y), Quaternion.identity, transform);
                 spawnedObject.name = $"Tile {x} {y}";
+
                 bool isOffset = ((x % 2 == 0 && y % 2 != 0) || (x % 2 != 0 && y % 2 == 0));
-                spawnedObject.GetComponent<Tile>().Init(new Vector2Int(x, y), isOffset, IsEnemyGrid);
-                _locTileKey.Add(new Vector2Int(x, y), spawnedObject.GetComponent<Tile>());
+                var tile = spawnedObject.GetComponent<Tile>();
+                tile.Init(new Vector2Int(x, y), isOffset, IsEnemyGrid);
+
+                _locTileKey.Add(new Vector2Int(x, y), tile);
             }
         }
     }
 
     public bool TryGetTile(Vector2Int position, out Tile tile)
     {
-        if (_locTileKey.TryGetValue(position, out tile))
-            return true;
-        return false;
+        return _locTileKey.TryGetValue(position, out tile);
     }
+
     public bool CanPlaceShip(Vector2Int origin, int length, bool vertical)
     {
         var shipCells = GetShipCells(origin, length, vertical);
 
+        // The ship itself cannot overlap any occupied cell
         foreach (var cell in shipCells)
         {
             if (!TryGetTile(cell, out var tile))
@@ -61,6 +69,7 @@ public class GridManager : MonoBehaviour
                 return false;
         }
 
+        // But adjacency should only be blocked by OTHER ships, not mines
         foreach (var cell in shipCells)
         {
             foreach (var neighbor in GetNeighbors(cell))
@@ -68,15 +77,43 @@ public class GridManager : MonoBehaviour
                 if (!TryGetTile(neighbor, out var tile))
                     continue;
 
-                if (tile.IsOccupied && !shipCells.Contains(neighbor))
+                if (IsShipAt(neighbor))
                     return false;
             }
         }
 
         return true;
     }
+
+    private bool IsShipAt(Vector2Int cell)
+    {
+        foreach (var ship in _placedShips)
+        {
+            if (ship == null || ship.Tile == null)
+                continue;
+
+            foreach (var occupied in ship.OccupiedCells)
+            {
+                if (occupied == cell)
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool CanPlaceMine(Vector2Int origin)
+    {
+        if (!TryGetTile(origin, out var tile))
+            return false;
+
+        return !tile.IsOccupied;
+    }
+
     public void ShowInvalidPlaces(Ship movedShip)
     {
+        ClearAllHighlight();
+
         foreach (Ship ship in _placedShips)
         {
             if (ship != movedShip && ship.Tile != null)
@@ -84,9 +121,15 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    void EncolorShipBoundaries(Ship ship)
+    public void ShowInvalidPlaces(Mine movedMine)
+    {
+        ClearAllHighlight();
+    }
+
+    private void EncolorShipBoundaries(Ship ship)
     {
         var shipCells = GetShipCells(ship.Tile.Coord, ship.Length, ship.Vertical);
+
         foreach (var cell in shipCells)
         {
             foreach (var neighbor in GetNeighbors(cell))
@@ -110,14 +153,14 @@ public class GridManager : MonoBehaviour
         if (!CanPlaceShip(origin, ship.Length, vertical))
             return false;
 
+        if (!TryGetTile(origin, out var anchorTile))
+            return false;
+
         foreach (var cell in occupiedCells)
         {
             if (TryGetTile(cell, out var tile))
                 tile.SetOccupied(true);
         }
-
-        if (!TryGetTile(origin, out var anchorTile))
-            return false;
 
         ship.Vertical = vertical;
         ship.SetPlacement(anchorTile, occupiedCells);
@@ -125,10 +168,121 @@ public class GridManager : MonoBehaviour
         Vector3 shipPos = anchorTile.transform.position;
         ship.transform.position = new Vector3(shipPos.x, ship.transform.position.y, shipPos.z);
 
-        if (!_placedShips.Contains(ship))
-            _placedShips.Add(ship);
-
+        _placedShips.Add(ship);
         return true;
+    }
+
+    public bool TryPlaceMine(Mine mine, Vector2Int origin)
+    {
+        if (mine == null)
+            return false;
+
+        if (!CanPlaceMine(origin))
+            return false;
+
+        if (!TryGetTile(origin, out var anchorTile))
+            return false;
+
+        anchorTile.SetOccupied(true);
+
+        mine.SetPlacement(anchorTile, new[] { origin });
+
+        Vector3 minePos = anchorTile.transform.position;
+        mine.transform.position = new Vector3(minePos.x, mine.transform.position.y, minePos.z);
+
+        _placedMines.Add(mine);
+        return true;
+    }
+
+    public void ClearShip(Ship ship)
+    {
+        if (ship == null)
+            return;
+
+        foreach (var coord in ship.OccupiedCells)
+        {
+            if (TryGetTile(coord, out var tile))
+                tile.SetOccupied(false);
+        }
+
+        _placedShips.Remove(ship);
+        ship.ClearPlacement();
+    }
+
+    public void ClearMine(Mine mine)
+    {
+        if (mine == null)
+            return;
+
+        foreach (var coord in mine.OccupiedCells)
+        {
+            if (TryGetTile(coord, out var tile))
+                tile.SetOccupied(false);
+        }
+
+        _placedMines.Remove(mine);
+        mine.ClearPlacement();
+    }
+
+    public void RestoreShip(Ship ship, Vector2Int origin, bool vertical)
+    {
+        if (ship == null)
+            return;
+
+        TryPlaceShip(ship, origin, vertical);
+    }
+
+    public void RestoreMine(Mine mine, Vector2Int origin)
+    {
+        if (mine == null)
+            return;
+
+        TryPlaceMine(mine, origin);
+    }
+
+    public void SetPreview(bool var)
+    {
+        foreach (var tile in _locTileKey.Values)
+            tile.SetPreview(var);
+    }
+
+    public void ClearAllHighlight()
+    {
+        foreach (var tile in _locTileKey.Values)
+        {
+            if (tile.Highlighted)
+                tile.Highlight(false);
+        }
+    }
+
+    public void DestroyAllTiles()
+    {
+        if (_locTileKey == null)
+        {
+            Debug.LogError("_locTileKey is null");
+            return;
+        }
+
+        foreach (var tile in _locTileKey.Values)
+        {
+            if (tile == null)
+            {
+                Debug.LogWarning("Found null tile in dictionary");
+                continue;
+            }
+
+            if (tile.gameObject == null)
+            {
+                Debug.LogWarning($"Tile has no gameObject: {tile.name}");
+                continue;
+            }
+
+            Destroy(tile.gameObject);
+        }
+
+        _locTileKey.Clear();
+        _placedShips.Clear();
+        _placedMines.Clear();
     }
 
     private List<Vector2Int> GetShipCells(Vector2Int origin, int length, bool vertical)
@@ -159,72 +313,5 @@ public class GridManager : MonoBehaviour
                 yield return new Vector2Int(cell.x + x, cell.y + y);
             }
         }
-    }
-
-    public void ClearShip(Ship ship)
-    {
-        if (ship == null)
-            return;
-
-        foreach (var coord in ship.OccupiedCells)
-        {
-            if (TryGetTile(coord, out var tile))
-                tile.SetOccupied(false);
-        }
-
-        ship.ClearPlacement();
-    }
-
-    public void RestoreShip(Ship ship, Vector2Int origin, bool vertical)
-    {
-        if (ship == null)
-            return;
-
-        TryPlaceShip(ship, origin, vertical);
-    }
-
-    public void SetPreview(bool var)
-    {
-        foreach (var tile in _locTileKey.Values)
-            tile.SetPreview(var);
-    }
-
-    public void ClearAllHighlight()
-    {
-        foreach (var tile in _locTileKey.Values)
-        {
-            if (tile.Highlighted)
-            {
-                tile.Highlight(false);
-            }
-        }
-    }
-
-    public void DestroyAllTiles()
-    {
-        if (_locTileKey == null)
-        {
-            Debug.LogError("_locTileKey is null");
-            return;
-        }
-
-        foreach (var tile in _locTileKey.Values)
-        {
-            if (tile == null)
-            {
-                Debug.LogWarning("Found null tile in dictionary");
-                continue;
-            }
-
-            if (tile.gameObject == null)
-            {
-                Debug.LogWarning($"Tile has no gameObject: {tile.name}");
-                continue;
-            }
-
-            Destroy(tile.gameObject);
-        }
-
-        _locTileKey.Clear();
     }
 }

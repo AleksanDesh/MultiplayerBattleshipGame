@@ -2,6 +2,7 @@ using Controller;
 using Model;
 using OSCTools;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.InputSystem.XR;
 using static Network.Client;
@@ -18,6 +19,7 @@ public class GridPlacement : MonoBehaviour
     public bool IgnoreServer;
     private SeaBattleClientController _controller;
     private Ship _draggedShip;
+    private Mine _draggedMine;
 
     private Vector3 _pickupPosition;
     private Quaternion _pickupRotation;
@@ -45,32 +47,32 @@ public class GridPlacement : MonoBehaviour
 
     public void UpdateGrids()
     {
-        if (_dragEnabled) 
+        if (_dragEnabled)
         {
-            if (_draggedShip == null)
+            if (_draggedShip == null && _draggedMine == null)
             {
-                if (Input.GetMouseButtonDown(0) && TryGetShipUnderPointer(out var ship))
-                    BeginDrag(ship);
+                if (Input.GetMouseButtonDown(0))
+                {
+                    if (TryGetShipUnderPointer(out var ship))
+                        BeginDrag(ship);
+                    else if (TryGetMineUnderPointer(out var mine))
+                        BeginDrag(mine);
+                }
 
                 return;
             }
 
-            UpdateDraggedShip();
+            UpdateDraggedPiece();
 
             if (Input.GetMouseButtonUp(0))
                 EndDrag();
-
         }
         else
         {
             if (_isMyTurn && Input.GetMouseButtonDown(0) && TryGetTileUnderPointer(out var tile))
             {
                 if (tile.IsEnemyTile)
-                {
-                    //Debug.Log($"Sucessefully bombed tile {tile.name} and it is enemy tile {tile.IsEnemyTile}. Whereas world location is {tile.transform.position}");
                     BombTile(tile);
-                }
-
             }
         }
     }
@@ -91,19 +93,26 @@ public class GridPlacement : MonoBehaviour
             _grid.ClearShip(ship);
 
         _grid.SetPreview(false);
-
-        //if (TryGetMouseWorldPoint(out var mouseWorld))
-        //    _dragOffset = ship.transform.position - mouseWorld;
-        //else
-        //    _dragOffset = Vector3.zero;
     }
+    private void BeginDrag(Mine mine)
+    {
+        _draggedMine = mine;
+        _draggedMine.BeginPickup();
 
-    private void UpdateDraggedShip()
+
+        _pickupPosition = mine.transform.position;
+        _pickupRotation = mine.transform.rotation;
+        _pickupTile = mine.Tile;
+
+        if (_pickupTile != null)
+            _grid.ClearMine(mine);
+    }
+    private void UpdateDraggedPiece()
     {
         if (!TryGetMouseWorldPoint(out var mouseWorld))
             return;
 
-        if (Input.GetMouseButtonDown(1))
+        if (_draggedShip != null && Input.GetMouseButtonDown(1))
         {
             _draggedShip.Vertical = !_draggedShip.Vertical;
 
@@ -112,16 +121,6 @@ public class GridPlacement : MonoBehaviour
             else
                 _draggedShip.transform.Rotate(0f, 90f, 0f, Space.World);
 
-            // Realign after rotation
-            //if (TryGetMouseWorldPoint(out var mouseWorld))
-            //{
-            //    Vector3 target2 = mouseWorld;
-            //    target2.y = _dragHeight;
-
-            //    Vector3 delta2 = _draggedShip.GrabPoint.position - _draggedShip.transform.position;
-            //    _draggedShip.transform.position = target2 - delta2;
-            //}
-
             _grid.ClearAllHighlight();
             _grid.ShowInvalidPlaces(_draggedShip);
         }
@@ -129,9 +128,18 @@ public class GridPlacement : MonoBehaviour
         Vector3 target = mouseWorld;
         target.y = _dragHeight;
 
-        Vector3 delta = _draggedShip.GrabPoint.position - _draggedShip.transform.position;
-        _draggedShip.transform.position = target - delta;
+        if (_draggedShip != null)
+        {
+            Vector3 delta = _draggedShip.GrabPoint.position - _draggedShip.transform.position;
+            _draggedShip.transform.position = target - delta;
+        }
+        else if (_draggedMine != null)
+        {
+            Vector3 delta = _draggedMine.GrabPoint.position - _draggedMine.transform.position;
+            _draggedMine.transform.position = target - delta;
+        }
     }
+
 
     private async void BombTile(Tile tile)
     {
@@ -140,7 +148,7 @@ public class GridPlacement : MonoBehaviour
         _bombing = true;
         _isMyTurn = false;
         if (!IgnoreServer)
-        { // TODO: ask the view to make some changes
+        {
             bool serverAccepted = await _controller.Bomb(tile.Coord.x, tile.Coord.y);
             if (!serverAccepted)
             {
@@ -154,6 +162,19 @@ public class GridPlacement : MonoBehaviour
     }
 
     private async void EndDrag()
+    {
+        if (_draggedShip != null)
+        {
+            await EndShipDrag();
+            return;
+        }
+
+        if (_draggedMine != null)
+        {
+            await EndMineDrag();
+        }
+    }
+    private async Task EndShipDrag()
     {
         if (_draggedShip == null)
             return;
@@ -181,9 +202,10 @@ public class GridPlacement : MonoBehaviour
             _grid.ClearAllHighlight();
             return;
         }
-        // If draggedShip is not null will update location while this waits for a response
+
         var tmpDraggedShip = _draggedShip;
         _draggedShip = null;
+
         if (!IgnoreServer)
         {
             bool serverAccepted = await _controller.PlaceShip(
@@ -194,7 +216,6 @@ public class GridPlacement : MonoBehaviour
 
             if (!serverAccepted)
             {
-                Debug.Log("Server did not accept position, restoring");
                 _grid.ClearShip(tmpDraggedShip);
 
                 tmpDraggedShip.transform.SetPositionAndRotation(_pickupPosition, _pickupRotation);
@@ -207,6 +228,61 @@ public class GridPlacement : MonoBehaviour
             }
         }
 
+        _grid.ClearAllHighlight();
+        _grid.SetPreview(true);
+    }
+
+    private async Task EndMineDrag()
+    {
+        if (_draggedMine == null)
+            return;
+
+        bool placed = false;
+        Tile targetTile = null;
+
+        if (TryGetTileUnderPointer(out var tile))
+        {
+            targetTile = tile;
+            placed = _grid.TryPlaceMine(_draggedMine, tile.Coord);
+        }
+
+        if (!placed)
+        {
+            _draggedMine.transform.SetPositionAndRotation(_pickupPosition, _pickupRotation);
+
+            if (_pickupTile != null)
+                _grid.RestoreMine(_draggedMine, _pickupTile.Coord);
+            else
+                _draggedMine.ClearPlacement();
+
+            _draggedMine = null;
+            _grid.ClearAllHighlight();
+            return;
+        }
+
+        var tmpDraggedMine = _draggedMine;
+        _draggedMine = null;
+
+        if (!IgnoreServer)
+        {
+            bool serverAccepted = await _controller.PlaceMine(
+                tmpDraggedMine,
+                targetTile.Coord.x,
+                targetTile.Coord.y
+            );
+
+            if (!serverAccepted)
+            {
+                _grid.ClearMine(tmpDraggedMine);
+
+                tmpDraggedMine.transform.SetPositionAndRotation(_pickupPosition, _pickupRotation);
+
+                if (_pickupTile != null)
+                    _grid.RestoreMine(tmpDraggedMine, _pickupTile.Coord);
+                else
+                    tmpDraggedMine.ClearPlacement();
+            }
+        }
 
         _grid.ClearAllHighlight();
         _grid.SetPreview(true);
@@ -225,6 +301,20 @@ public class GridPlacement : MonoBehaviour
             return false;
 
         return hit.collider.TryGetComponent(out ship);
+    }
+    private bool TryGetMineUnderPointer(out Mine mine)
+    {
+        mine = null;
+
+        if (_camera == null)
+            return false;
+
+        Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
+
+        if (!Physics.Raycast(ray, out RaycastHit hit, 500f, _shipMask))
+            return false;
+
+        return hit.collider.TryGetComponent(out mine);
     }
     private bool TryGetTileUnderPointer(out Tile tile)
     {

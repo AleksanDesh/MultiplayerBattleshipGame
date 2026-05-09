@@ -66,17 +66,19 @@ namespace Network
             }
         }
 
-        public delegate void MinePlacementEvent(int x, int y);
+        public delegate void MinePlacementEvent(int x, int y, Mine mine);
         public event MinePlacementEvent OnMinePlacement;
         private PendingMinePlacement _pendingMinePlacement;
         private sealed class PendingMinePlacement
         {
             public Location location { get; }
+            public Mine Mine { get; }
             public TaskCompletionSource<int> Tcs { get; }
-            public PendingMinePlacement(int x, int y)
+            public PendingMinePlacement(int x, int y, Mine mine)
             {
                 location = new Location(x, y);
                 Tcs = new TaskCompletionSource<int>();
+                Mine = mine;
             }
         }
 
@@ -315,12 +317,12 @@ namespace Network
             return WaitForResponse(tcs, "PlaceShip");
         }
 
-        public Task<int> PlaceMine(int x, int y)
+        public Task<int> PlaceMine(int x, int y, Mine mine)
         {
-            _pendingMinePlacement = new PendingMinePlacement(x, y);
+            _pendingMinePlacement = new PendingMinePlacement(x, y, mine);
             var tcs = _pendingMinePlacement.Tcs;
 
-            var message = new OSCMessageOut("/PlaceMine").AddInt(x).AddInt(y);
+            var message = new OSCMessageOut("/PlaceMine").AddInt(mine.Id).AddInt(x).AddInt(y);
             if (!TrySend(message, "PlaceMine"))
             {
                 var ex = new IOException("PlaceMine failed: no active connection.");
@@ -500,7 +502,7 @@ namespace Network
             if (pending == null)
                 return;
             if (result == 0) // Make the actual placement
-                OnMinePlacement?.Invoke(pending.location.X, pending.location.Y);
+                OnMinePlacement?.Invoke(pending.location.X, pending.location.Y, pending.Mine);
             // Else display an error
             // TODO.
             pending.Tcs?.TrySetResult(result);

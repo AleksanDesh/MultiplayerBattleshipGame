@@ -185,6 +185,9 @@ namespace Model
         private Dictionary<int, Ship> _ships = new Dictionary<int, Ship>();
         public Dictionary<int, Ship> Ships => _ships;
 
+        private Dictionary<int, Mine> _mines = new Dictionary<int, Mine>();
+        public Dictionary<int, Mine> Mines => _mines;
+
         public SessionParticipant(PlayerData player, PlayerSide side)
         {
             Player = player ?? throw new ArgumentNullException(nameof(player));

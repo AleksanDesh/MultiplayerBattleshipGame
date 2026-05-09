@@ -54,7 +54,7 @@ namespace Network
 
         private static bool CanMatch(int a, int b)
         {
-            return a == 0 || b == 0 || a == b;
+            return (a == 0 || b == 0 || a == b) && (a != 0 || b != 0);
         }
 
 
@@ -331,7 +331,7 @@ namespace Network
             _dispatcher.AddListener("/Login", ConnectionLoginRequest, OSCUtil.STRING, OSCUtil.STRING);
             _dispatcher.AddListener("/Register", ConnectionRegisterRequest, OSCUtil.STRING, OSCUtil.STRING);
             _dispatcher.AddListener("/PlaceShip", ConnectionPlaceShipRequest, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.BOOL);
-            _dispatcher.AddListener("/PlaceMine", ConnectionPlaceMineRequest, OSCUtil.INT, OSCUtil.INT);
+            _dispatcher.AddListener("/PlaceMine", ConnectionPlaceMineRequest, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT);
             _dispatcher.AddListener("/Bomb", ConnectionBombRequest, OSCUtil.INT, OSCUtil.INT);
             _dispatcher.AddListener("/MarkReady", ConnectionMarkReadyRequest);
             _dispatcher.AddListener("/Enqueue", ConnectionEnqueueRequest, OSCUtil.INT);
@@ -407,21 +407,23 @@ namespace Network
 
         void ConnectionPlaceMineRequest(OSCMessageIn message, IPEndPoint remote)
         {
-            if (message.ReadInt() is not int x || message.ReadInt() is not int y)
+            if (message.ReadInt() is not int id ||
+                message.ReadInt() is not int x ||
+                message.ReadInt() is not int y)
                 return;
 
             if (!TryGetConnection(remote, out TcpNetworkConnection connection) ||
                 !TryGetPlayer(connection, out PlayerData player))
                 return;
 
-            int[] coordinates = new int[2] { x, y };
+            var mine = new Mine(new Vector2(x, y), id);
 
             int result;
             string debug;
 
             try
             {
-                debug = PlaceMine(player.Username, coordinates, out result);
+                debug = PlaceMine(player.Username, mine, out result);
             }
             catch (Exception ex) when (
                 ex is ArgumentNullException ||
@@ -566,7 +568,8 @@ namespace Network
         /// Attempting to enqueue this user.
         /// - 1 = unexpected
         /// 0 = sucess
-        /// 1 = already in queue
+        /// 1 = Player not logged in
+        /// 2 = already in queue
         /// </summary>
         /// <param name="message"></param>
         /// <param name="remote"></param>
@@ -578,23 +581,22 @@ namespace Network
             if (queueId < 0 || queueId > 5) // bounds
                 return;
 
+            int result = -1;
+
             if (!TryGetConnection(remote, out TcpNetworkConnection connection))
                 return;
 
             if (!_tcpNetPlayerKey.TryGetValue(connection, out var player))
-                return;
-
-            int result = -1;
-            if (!_matchQueue.Any(q => q.Player.Username == player.Username))
+                result = 1;
+            else if (!_matchQueue.Any(q => q.Player.Username == player.Username))
             {
                 player.SetSessionState(PlayerSessionState.InQueue);
                 _matchQueue.Add(new QueuedPlayer(player, queueId));
                 result = 0;
             }
             else
-            {
-                result = 1;
-            }
+                result = 2;
+
             OSCMessageOut reply = new OSCMessageOut("/Enqueue").AddInt(result);
             connection.Send(reply.GetBytes());
         }
@@ -742,7 +744,7 @@ namespace Network
             //TODO: create UI element for it and make this work, comment by NIK (alex, add the mines with queueId / 2)
             try
             {
-                SessionData newSession = new SessionData(player1, player2, queueId, 0, queueId + 2);
+                SessionData newSession = new SessionData(player1, player2, queueId, queueId / 2, queueId + 2);
                 if (newSession == null)
                     return false;
 
@@ -845,7 +847,7 @@ namespace Network
         /// 0 = sucess
         /// 1 = out of bounds</param>
         /// <returns></returns>
-        public string PlaceMine(string username, int[] location, out int result)
+        public string PlaceMine(string username, Mine mine, out int result)
         {
             if (!_userSessionKey.ContainsKey(username))
             {
@@ -854,7 +856,7 @@ namespace Network
             }
             var player = _userPlayerKey[username];
             var session = _userSessionKey[username];
-            var outcome = _battleBehavior.PlaceMine(session, player, location);
+            var outcome = _battleBehavior.PlaceMine(session, player, mine);
 
             string message = $"Server: {username} " + outcome.ToString();
 
