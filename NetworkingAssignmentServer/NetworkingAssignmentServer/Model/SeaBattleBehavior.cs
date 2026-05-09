@@ -214,8 +214,10 @@ namespace Model
             return PlaceMineResult.Success;
         }
 
-        public BombingResult Bomb(SessionData session, PlayerData player, int[] location)
+        public BombingResult Bomb(SessionData session, PlayerData player, int[] location, out List<BombTrace> extraHits)
         {
+            extraHits = new List<BombTrace>();
+
             if (session.Phase != GamePhase.Battle)
                 throw new InvalidOperationException("SeaBattleBehavior: Bombing is only allowed during battle.");
             if (location == null || location.Length < 2)
@@ -223,13 +225,12 @@ namespace Model
 
             var board = session.GetEnemyBoard(player);
             var participant = session.GetParticipant(player);
+
             if (!session.TryGetEnemyParticipant(player, out var enemyParticipant))
                 throw new InvalidOperationException("SeaBattleBehavior: you are not part of this session");
 
             if (session._participantTurn != participant.Side)
-            {
                 throw new InvalidOperationException("SeaBattleBehavior: It is not your turn, how did you send this? Are you cheating?");
-            }
 
             int x = location[0];
             int y = location[1];
@@ -239,7 +240,9 @@ namespace Model
 
             var cell = board[x][y];
 
+            // Default turn change: bomb passes the turn.
             session._participantTurn = enemyParticipant.Side;
+
             switch (cell._state)
             {
                 case Cell.CellState.Empty:
@@ -247,17 +250,17 @@ namespace Model
                         cell._state = Cell.CellState.Bombed;
                         return BombingResult.Empty;
                     }
+
                 case Cell.CellState.Bombed:
                     {
                         return BombingResult.AlreadyBombed;
                     }
+
                 case Cell.CellState.Ship:
                     {
-                        // One bomb destroys one occupied cell, not one whole ship.
                         cell._state = Cell.CellState.Bombed;
                         enemyParticipant.IncrementLostShipCells();
 
-                        // When every ship cell on the enemy board has been destroyed, the battle ends.
                         if (IfLost(session, enemyParticipant))
                         {
                             player.UpdateTopScore(player.TopScore + 1);
@@ -265,23 +268,101 @@ namespace Model
                             return BombingResult.Victory;
                         }
 
-                        // Normal hit: same player keeps the turn.
+                        // Normal hit: attacker keeps turn.
                         session._participantTurn = participant.Side;
                         return BombingResult.Sucess;
                     }
+
                 case Cell.CellState.Mine:
                     {
                         cell._state = Cell.CellState.Bombed;
+                        extraHits.Add(new BombTrace(x, y, BombingResult.Mine));
+                        enemyParticipant.IncrementLostMines();
+
+                        ExplodeMine(session, player, enemyParticipant, x, y, 2, extraHits);
+
+                        if (IfLost(session, enemyParticipant))
+                        {
+                            player.UpdateTopScore(player.TopScore + 1);
+                            session.FinishGame();
+                            return BombingResult.Victory;
+                        }
+
                         return BombingResult.Mine;
                     }
-                default:
-                    {
-                        break;
-                    }
-            }
-            throw new NotImplementedException("SeaBattleBehavior: This is not expected nor implemented");
-        }
 
+                default:
+                    throw new NotImplementedException("SeaBattleBehavior: This is not expected nor implemented");
+            }
+        }
+        internal readonly record struct BombTrace(int X, int Y, BombingResult Result);
+        private static void ExplodeMine(
+            SessionData session,
+            PlayerData attacker,
+            SessionParticipant enemyParticipant,
+            int centerX,
+            int centerY,
+            int radius,
+            List<BombTrace> extraHits)
+        {
+            var board = session.GetEnemyBoard(attacker);
+
+            for (int dy = -radius; dy <= radius; dy++)
+            {
+                for (int dx = -radius; dx <= radius; dx++)
+                {
+                    int x = centerX + dx;
+                    int y = centerY + dy;
+
+                    if (x < 0 || y < 0 || x >= board.Length || y >= board.Length)
+                        continue;
+
+                    // The center mine itself is already recorded by the caller.
+                    if (x == centerX && y == centerY)
+                        continue;
+
+                    ApplyExplosionCell(session, attacker, enemyParticipant, x, y, radius, extraHits);
+                }
+            }
+        }
+        private static void ApplyExplosionCell(SessionData session,
+            PlayerData attacker,
+            SessionParticipant enemyParticipant,
+            int x,
+            int y,
+            int radius,
+            List<BombTrace> extraHits)
+        {
+            var board = session.GetEnemyBoard(attacker);
+            var cell = board[x][y];
+
+            switch (cell._state)
+            {
+                case Cell.CellState.Empty:
+                    cell._state = Cell.CellState.Bombed;
+                    extraHits.Add(new BombTrace(x, y, BombingResult.Empty));
+                    break;
+
+                case Cell.CellState.Bombed:
+                    break;
+
+                case Cell.CellState.Ship:
+                    cell._state = Cell.CellState.Bombed;
+                    enemyParticipant.IncrementLostShipCells();
+                    extraHits.Add(new BombTrace(x, y, BombingResult.Sucess));
+                    break;
+
+                case Cell.CellState.Mine:
+                    cell._state = Cell.CellState.Bombed;
+                    enemyParticipant.IncrementLostMines();
+                    extraHits.Add(new BombTrace(x, y, BombingResult.Mine));
+                    ExplodeMine(session, attacker, enemyParticipant, x, y, radius, extraHits);
+                    break;
+
+                default:
+                    throw new NotImplementedException("SeaBattleBehavior: This is not expected nor implemented");
+            }
+        }
         /// <summary>
         /// If returns true => start the battle
         /// </summary>

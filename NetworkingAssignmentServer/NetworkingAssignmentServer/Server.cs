@@ -473,11 +473,12 @@ namespace Network
             }
 
             int result;
+            List<BombTrace>? extraHits = new List<BombTrace>();
             string debug;
 
             try
             {
-                debug = Bomb(player.Username, coordinates, out result);
+                debug = Bomb(player.Username, coordinates, out result, out extraHits);
             }
             catch (Exception ex) when (
                 ex is ArgumentNullException ||
@@ -510,6 +511,24 @@ namespace Network
                         .AddBool(false);
 
                     enemyConnection.Send(enemyInform.GetBytes());
+                    if (extraHits != null && extraHits.Count > 0)
+                        foreach (var hit in extraHits)
+                        {// this is not good xD
+                            OSCMessageOut enemyExtraHit = new OSCMessageOut("/Bomb")
+                                .AddInt((int)hit.Result)
+                                .AddInt(hit.X)
+                                .AddInt(hit.Y)
+                                .AddBool(false);
+
+                            OSCMessageOut extraHit = new OSCMessageOut("/Bomb")
+                                .AddInt((int)hit.Result)
+                                .AddInt(hit.X)
+                                .AddInt(hit.Y)
+                                .AddBool(true);
+
+                            connection.Send(extraHit.GetBytes());
+                            enemyConnection.Send(enemyExtraHit.GetBytes());
+                        }
                 }
             }
             else if (result == 6)
@@ -886,10 +905,10 @@ namespace Network
         /// 5 = not in a session
         /// 6 = victory </param>
         /// <returns></returns>
-        public string Bomb(string username, int[] location, out int result)
+        public string Bomb(string username, int[] location, out int result, out List<SeaBattleBehavior.BombTrace>? extraHits)
         {
             result = -1;
-
+            extraHits = null;
             if (!_userSessionKey.ContainsKey(username))
             {
                 result = 5;
@@ -902,7 +921,7 @@ namespace Network
 
             try
             {
-                outcome = _battleBehavior.Bomb(session, player, location);
+                outcome = _battleBehavior.Bomb(session, player, location, out extraHits);
             }
             catch (InvalidOperationException error)
             {
