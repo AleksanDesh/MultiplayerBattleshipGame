@@ -301,29 +301,29 @@ namespace Model
         }
         internal enum PlaceMineResult
         {
-            Success,
-            OutOfBounds,
-            CellOccupied,
-            MineLimitReached
+            Success = 0,
+            OutOfBounds = 1,
+            CellOccupied = 2,
+            MineLimitReached = 3
         }
 
         internal enum BombingResult
         {
-            Sucess,
-            OutOfBounds,
-            AlreadyBombed,
-            Empty,
-            Mine,
-            Victory
+            Sucess = 0,
+            OutOfBounds = 1,
+            AlreadyBombed = 2,
+            Empty = 3,
+            Mine = 4,
+            Victory = 6
         }
 
         internal enum MarkingResult
         {
-            Success,
-            BattleStarted,
-            ShipsNotPlaced,
-            MinesNotPlaced,
-            AlreadyMarked
+            Success = 0,
+            BattleStarted = 1,
+            ShipsNotPlaced = 2,
+            MinesNotPlaced = 3,
+            AlreadyMarked = 4
         }
     }
 }

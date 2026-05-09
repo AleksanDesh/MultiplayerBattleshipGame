@@ -148,10 +148,20 @@ namespace Network
 
         void HandlePacket(byte[] packet, IPEndPoint remote)
         {
-            OSCMessageIn mess = new OSCMessageIn(packet);
-            OSCLog.WriteLine("Server: Message arrived to server: " + mess);
+            try
+            {
+                OSCMessageIn mess = new OSCMessageIn(packet);
+                OSCLog.WriteLine("Server: Message arrived to server: " + mess);
 
-            _dispatcher.HandlePacket(packet, remote);
+                _dispatcher.HandlePacket(packet, remote);
+            }
+            catch (Exception ex)
+            {
+                OSCLog.WriteLine($"Server: packet handling failed from {remote}: {ex}");
+
+                if (TryGetConnection(remote, out var conn))
+                    DisconnectConnection(conn, "Bad packet or handler failure");
+            }
         }
         bool TryGetConnection(IPEndPoint remote, out TcpNetworkConnection connection)
         {
@@ -224,8 +234,6 @@ namespace Network
             {
                 _ipEndToTcpNetKey.Remove(connection.Remote);
             }
-
-            // TODO: If TcpNetworkConnection exposes a close/dispose method, call it here.
         }
 
         void SendRejoinPayload(TcpNetworkConnection connection, PlayerData player, SessionData session)
@@ -816,53 +824,15 @@ namespace Network
 
             string message = $"Server: {username} " + outcome.ToString();
 
-            result = (int)outcome;
-
-            switch (outcome)
+            result = outcome switch
             {
-                case PlaceShipResult.Success:
-                    {
-                        // TODO: success logic
-                        result = 0;
-                        //message = "SUCESS";
-                        break;
-                    }
-
-                case PlaceShipResult.OutOfBounds:
-                    {
-                        result = 1;
-                        // TODO: out of bounds logic
-                        break;
-                    }
-
-                case PlaceShipResult.CellOccupied:
-                    {
-                        result = 2;
-                        // TODO: cell occupied logic
-                        break;
-                    }
-
-                case PlaceShipResult.ShipNearby:
-                    {
-                        result = 3;
-                        // TODO: ship nearby logic
-                        break;
-                    }
-
-                case PlaceShipResult.ShipLimitReached:
-                    {
-                        result = 4;
-                        // TODO: ship limit reached logic
-                        break;
-                    }
-
-                default:
-                    {
-                        result = -1;
-                        // TODO: unexpected result logic
-                        break;
-                    }
-            }
+                PlaceShipResult.Success => 0,
+                PlaceShipResult.OutOfBounds => 1,
+                PlaceShipResult.CellOccupied => 2,
+                PlaceShipResult.ShipNearby => 3,
+                PlaceShipResult.ShipLimitReached => 4,
+                _ => -1
+            };
 
             return message;
         }
@@ -888,44 +858,14 @@ namespace Network
 
             string message = $"Server: {username} " + outcome.ToString();
 
-            switch (outcome)
+            result = outcome switch
             {
-                case PlaceMineResult.Success:
-                    {
-                        // TODO: success logic
-                        result = 0;
-                        //message = "SUCESS";
-                        break;
-                    }
-
-                case PlaceMineResult.OutOfBounds:
-                    {
-                        result = 1;
-                        // TODO: out of bounds logic
-                        break;
-                    }
-
-                case PlaceMineResult.CellOccupied:
-                    {
-                        result = 2;
-                        // TODO: cell occupied logic
-                        break;
-                    }
-
-                case PlaceMineResult.MineLimitReached:
-                    {
-                        result = 3;
-                        // TODO: mine limit reached logic
-                        break;
-                    }
-
-                default:
-                    {
-                        result = -1;
-                        // TODO: unexpected result logic
-                        break;
-                    }
-            }
+                PlaceMineResult.Success => 0,
+                PlaceMineResult.OutOfBounds => 1,
+                PlaceMineResult.CellOccupied => 2,
+                PlaceMineResult.MineLimitReached => 3,
+                _ => -1
+            };
 
             return message;
         }
@@ -947,14 +887,17 @@ namespace Network
         public string Bomb(string username, int[] location, out int result)
         {
             result = -1;
+
             if (!_userSessionKey.ContainsKey(username))
             {
                 result = 5;
                 return $"Server: {username} is not in a session";
             }
+
             var player = _userPlayerKey[username];
             var session = _userSessionKey[username];
             BombingResult outcome;
+
             try
             {
                 outcome = _battleBehavior.Bomb(session, player, location);
@@ -964,66 +907,30 @@ namespace Network
                 result = -1;
                 var conn = _userTcpKey[username];
                 DisconnectConnection(conn, "Malicious");
-                return error.Message;                
+                return error.Message;
             }
 
             string message = $"Server: {username} " + outcome.ToString();
 
-            switch (outcome)
+            result = outcome switch
             {
-                case BombingResult.Sucess:
-                    {
-                        // TODO: success logic
-                        result = 0;
-                        //message = "SUCESS";
-                        break;
-                    }
+                BombingResult.Sucess => 0,
+                BombingResult.OutOfBounds => 1,
+                BombingResult.AlreadyBombed => 2,
+                BombingResult.Empty => 3,
+                BombingResult.Mine => 4,
+                BombingResult.Victory => 6,
+                _ => -1
+            };
 
-                case BombingResult.OutOfBounds:
-                    {
-                        result = 1;
-                        // TODO: out of bounds logic
-                        break;
-                    }
+            if (outcome == BombingResult.Victory)
+            {
+                if (!session.TryGetEnemyParticipant(player, out var participant) || participant == null)
+                    return message;
 
-                case BombingResult.AlreadyBombed:
-                    {
-                        result = 2;
-                        // TODO: already bombed logic
-                        break;
-                    }
-
-                case BombingResult.Empty:
-                    {
-                        result = 3;
-                        // TODO: empty cell logic
-                        break;
-                    }
-
-                case BombingResult.Mine:
-                    {
-                        result = 4;
-                        // TODO: mine hit logic
-                        break;
-                    }
-
-                case BombingResult.Victory:
-                    {
-                        if (!session.TryGetEnemyParticipant(player, out var participant) || participant == null)
-                            return message;
-                        result = 6;
-                        var enemyPlayer = participant.Player;
-                        _login.SaveAccount(player);
-                        CleanupSession(session, $"{player.Username} won");
-                        break;
-                    }
-
-                default:
-                    {
-                        result = -1;
-                        // TODO: unexpected result logic
-                        break;
-                    }
+                var enemyPlayer = participant.Player;
+                _login.SaveAccount(player);
+                CleanupSession(session, $"{player.Username} won");
             }
 
             return message;
@@ -1046,51 +953,19 @@ namespace Network
 
             string message = $"Server: {username} " + outcome.ToString();
 
-            switch (outcome)
+            result = outcome switch
             {
-                case MarkingResult.Success:
-                    {
-                        result = 0;
-                        // TODO: success logic
-                        // tell the client to wait for the other player
-                        message = $"Server: sucessefuly pressed Ready. Waiting for the other party...";
-                        break;
-                    }
+                MarkingResult.Success => 0,
+                MarkingResult.BattleStarted => 1,
+                MarkingResult.ShipsNotPlaced => 2,
+                MarkingResult.MinesNotPlaced => 3,
+                MarkingResult.AlreadyMarked => 4,
+                _ => -1
+            };
 
-                case MarkingResult.BattleStarted:
-                    {
-                        result = 1;
-                        // TODO: battle started logic
-                        // send info to both, that the game has started
-                        
-                        break;
-                    }
-
-                case MarkingResult.ShipsNotPlaced:
-                    {
-                        result = 2;
-                        // TODO: ships not placed logic
-                        break;
-                    }
-
-                case MarkingResult.MinesNotPlaced:
-                    {
-                        result = 3;
-                        // TODO: mines not placed logic
-                        break;
-                    }
-                case MarkingResult.AlreadyMarked:
-                    {
-                        result = 4;
-                        // Already marked
-                        break;
-                    }
-                default:
-                    {
-                        result = -1;
-                        // TODO: unexpected result logic
-                        break;
-                    }
+            if (outcome == MarkingResult.Success)
+            {
+                message = $"Server: sucessefuly pressed Ready. Waiting for the other party...";
             }
 
             return message;
