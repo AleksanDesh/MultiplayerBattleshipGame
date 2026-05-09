@@ -35,8 +35,29 @@ namespace Network
 
         readonly object _sessionCleanupLock = new object();
         readonly Dictionary<int, Timer> _sessionCleanupTimers = new Dictionary<int, Timer>();
+
+
         // Queing for players, now enques all newly connected users
-        Queue<PlayerData> _playerQueue = new Queue<PlayerData>();
+        //Queue<PlayerData> _playerQueue = new Queue<PlayerData>();
+        private sealed class QueuedPlayer
+        {
+            public PlayerData Player { get; }
+            public int QueueId { get; }
+
+            public QueuedPlayer(PlayerData player, int queueId)
+            {
+                Player = player;
+                QueueId = queueId;
+            }
+        }
+        private readonly List<QueuedPlayer> _matchQueue = new List<QueuedPlayer>();
+
+        private static bool CanMatch(int a, int b)
+        {
+            return a == 0 || b == 0 || a == b;
+        }
+
+
         public static string GetLocalIPv4()
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());
@@ -152,21 +173,11 @@ namespace Network
 
         void RemoveQueuedPlayer(PlayerData player)
         {
-            // Queue has no Remove, so rebuild it safely.
-            if (_playerQueue.Count == 0)
+            if (_matchQueue.Count == 0)
                 return;
 
-            Queue<PlayerData> newQueue = new Queue<PlayerData>();
-
-            while (_playerQueue.Count > 0)
-            {
-                PlayerData queuedPlayer = _playerQueue.Dequeue();
-
-                if (queuedPlayer.Username != player.Username)
-                    newQueue.Enqueue(queuedPlayer);
-            }
-
-            _playerQueue = newQueue;
+             _matchQueue.RemoveAll(qp => qp.Player.Username == player.Username);
+            
         }
 
         void DisconnectConnection(TcpNetworkConnection connection, string reason)
@@ -299,7 +310,7 @@ namespace Network
 
         public void FixedUpdate()
         {
-            if (_playerQueue.Count > 1)
+            if (_matchQueue.Count > 1)
             {
                 bool isSessionCreated = TryCreateSession();
                 if (isSessionCreated) OSCLog.WriteLine($"Server: Session created succesefully");
@@ -315,7 +326,7 @@ namespace Network
             _dispatcher.AddListener("/PlaceMine", ConnectionPlaceMineRequest, OSCUtil.INT, OSCUtil.INT);
             _dispatcher.AddListener("/Bomb", ConnectionBombRequest, OSCUtil.INT, OSCUtil.INT);
             _dispatcher.AddListener("/MarkReady", ConnectionMarkReadyRequest);
-            _dispatcher.AddListener("/Enqueue", ConnectionEnqueueRequest);
+            _dispatcher.AddListener("/Enqueue", ConnectionEnqueueRequest, OSCUtil.INT);
         }
         void ConnectionLoginRequest(OSCMessageIn message, IPEndPoint remote)
         {
@@ -430,6 +441,7 @@ namespace Network
 
             int[] coordinates = new int[2] { x, y };
 
+            // general helper method?
             if (!_userSessionKey.TryGetValue(player.Username, out var session))
                 return;
 
@@ -477,7 +489,7 @@ namespace Network
 
             connection.Send(reply.GetBytes());
 
-            if (result == 0 || result == 3 || result == 4)
+            if (result == 0 || result == 3 || result == 4) // enum??
             {
                 if (_userTcpKey.TryGetValue(enemyPlayer.Username, out var enemyConnection))
                 {
@@ -541,30 +553,40 @@ namespace Network
                 }
             }
         }
-        // We receive name, the oponent's victories coumt, ship preset (or game preset)
-        // (2, 3, 4 etc. ships on the board allowed. Each number has a prefab of ships included),
-        // mines to place
-        // board size
+        
+        /// <summary>
+        /// Attempting to enqueue this user.
+        /// - 1 = unexpected
+        /// 0 = sucess
+        /// 1 = already in queue
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="remote"></param>
         void ConnectionEnqueueRequest(OSCMessageIn message, IPEndPoint remote)
-        {// TODO: check if already in a session or inapropriate state
-         // OR (PB): TODO: Use Rooms for a clean separation :-)   (See BC3, slide 43)
-         // This is technically room.
-            int result = -1;
+        {
+            if (message.ReadInt() is not int queueId)
+                return;
+
+            if (queueId < 0 || queueId > 5) // bounds
+                return;
 
             if (!TryGetConnection(remote, out TcpNetworkConnection connection))
                 return;
 
-            if (_tcpNetPlayerKey.TryGetValue(connection, out var player))
+            if (!_tcpNetPlayerKey.TryGetValue(connection, out var player))
+                return;
+
+            int result = -1;
+            if (!_matchQueue.Any(q => q.Player.Username == player.Username))
             {
-                result = 0;
                 player.SetSessionState(PlayerSessionState.InQueue);
-                _playerQueue.Enqueue(player);
-                OSCLog.WriteLine($"Server: {player.Username} enqueued sucessefully." +
-                    $" Queue consists of {_playerQueue.Count} players");
+                _matchQueue.Add(new QueuedPlayer(player, queueId));
+                result = 0;
             }
             else
+            {
                 result = 1;
-
+            }
             OSCMessageOut reply = new OSCMessageOut("/Enqueue").AddInt(result);
             connection.Send(reply.GetBytes());
         }
@@ -572,9 +594,7 @@ namespace Network
 
         #region UserLoging
         /// <summary>
-        /// Attempt to connect the user
-        /// TODO: Make it so the answer will be a number, that coresponds to a certain error. Dictionary of errors,
-        /// so i can send a number, which will represent what went wrong
+        /// Attempt to login the user
         /// </summary>
         /// <param name="result"> The output of what happend. 
         /// -1 = something went REALLY WRONG
@@ -652,12 +672,39 @@ namespace Network
             result = _login.RegisterUser(username, password, out playerData);
             return result == 0;
         }
-
         bool TryCreateSession()
         {
-            PlayerData player1 = _playerQueue.Dequeue(); // First player
-            PlayerData player2 = _playerQueue.Dequeue(); // Second player
+            QueuedPlayer? first = null;
+            QueuedPlayer? second = null;
 
+
+            for (int i = 0; i < _matchQueue.Count; i++)
+            {
+                for (int j = i + 1; j < _matchQueue.Count; j++)
+                {
+                    if (CanMatch(_matchQueue[i].QueueId, _matchQueue[j].QueueId))
+                    {
+                        first = _matchQueue[i];
+                        second = _matchQueue[j];
+
+                        _matchQueue.RemoveAt(j);
+                        _matchQueue.RemoveAt(i);
+                        break;
+                    }
+                }
+
+                if (first != null)
+                    break;
+            }
+            
+
+            if (first == null || second == null)
+                return false;
+
+            return TryCreateSession(first.Player, second.Player, first.QueueId == 0 ? second.QueueId : first.QueueId);
+        }
+        bool TryCreateSession(PlayerData player1, PlayerData player2, int queueId)
+        {
             // Check both if the connection is still valid.
             if (!_userTcpKey.TryGetValue(player1.Username, out var player1Connection) ||
                 player1Connection == null ||
@@ -665,6 +712,8 @@ namespace Network
                 player1Connection.IsDisconnected)
             {
                 OSCLog.WriteLine($"Server: {player1.Username} is no longer connected, skipping session creation.");
+                // Put player2 back, since they were valid.
+                _matchQueue.Add(new QueuedPlayer(player2, queueId));
                 player1.SetSessionState(PlayerSessionState.InMenu);
                 return false;
             }
@@ -678,48 +727,59 @@ namespace Network
                 player2.SetSessionState(PlayerSessionState.InMenu);
 
                 // Put player1 back, since they were valid.
-                _playerQueue.Enqueue(player1);
+                _matchQueue.Add(new QueuedPlayer(player1, queueId));
                 player1.SetSessionState(PlayerSessionState.InQueue);
                 return false;
             }
-            //TODO: create UI element for it and make this work, comment by NIK
-            SessionData newSession = new SessionData(player1, player2, 3, 0);
-            if (newSession == null)
-                return false;
-
-            if (!_userSessionKey.ContainsKey(player1.Username) && !_userSessionKey.ContainsKey(player2.Username))
+            //TODO: create UI element for it and make this work, comment by NIK (alex, add the mines with queueId / 2)
+            try
             {
-                _userSessionKey.Add(player1.Username, newSession);
-                _userSessionKey.Add(player2.Username, newSession);
+                SessionData newSession = new SessionData(player1, player2, queueId, 0, queueId + 2);
+                if (newSession == null)
+                    return false;
+
+                if (!_userSessionKey.ContainsKey(player1.Username) && !_userSessionKey.ContainsKey(player2.Username))
+                {
+                    _userSessionKey.Add(player1.Username, newSession);
+                    _userSessionKey.Add(player2.Username, newSession);
+                }
+                else
+                {
+                    if (_userSessionKey.ContainsKey(player1.Username))
+                        OSCLog.WriteLine($"Server: !!!! {player1.Username} already is in session, HOW are you creating another one?");
+                    if (_userSessionKey.ContainsKey(player2.Username))
+                        OSCLog.WriteLine($"Server: !!!! {player2.Username} already is in session, HOW are you creating another one?");
+
+                    // Kick the players
+                    DisconnectConnection(player1Connection, "already in session");
+                    DisconnectConnection(player2Connection, "already in session");
+                    return false;
+                }
+
+                _sessionDatas.Add(newSession);
+                player1.SetSessionState(PlayerSessionState.InGame);
+                player2.SetSessionState(PlayerSessionState.InGame);
+
+                // This is for starting the battle. Broadcast
+                OSCMessageOut player1Info =
+                    new OSCMessageOut("/StartBattle").AddString(player2.Username).AddInt(player2.TopScore)
+                    .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length).AddBool(true); // bool if first turn
+                OSCMessageOut player2Info =
+                    new OSCMessageOut("/StartBattle").AddString(player1.Username).AddInt(player1.TopScore)
+                    .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length).AddBool(false);
+
+                player1Connection.Send(player1Info.GetBytes());
+                player2Connection.Send(player2Info.GetBytes());
+                return true;
             }
-            else
+            catch (Exception ex) when (ex is ArgumentNullException || ex is ArgumentOutOfRangeException)
             {
-                if (_userSessionKey.ContainsKey(player1.Username))
-                    OSCLog.WriteLine($"Server: !!!! {player1.Username} already is in session, HOW are you creating another one?");
-                if (_userSessionKey.ContainsKey(player2.Username))
-                    OSCLog.WriteLine($"Server: !!!! {player2.Username} already is in session, HOW are you creating another one?");
-
-                // Kick the players
-                DisconnectConnection(player1Connection, "already in session");
-                DisconnectConnection(player2Connection, "already in session");
-                return false;
+                // kick the players:
+                DisconnectConnection(player1Connection, "Invalid session");
+                DisconnectConnection(player2Connection, "Invalid session");
+                OSCLog.WriteLine("Session creation faied due to: ", ex);
             }
-
-            _sessionDatas.Add(newSession);
-            player1.SetSessionState(PlayerSessionState.InGame);
-            player2.SetSessionState(PlayerSessionState.InGame);
-
-            // This is for starting the battle. Broadcast
-            OSCMessageOut player1Info =
-                new OSCMessageOut("/StartBattle").AddString(player2.Username).AddInt(player2.TopScore)
-                .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length).AddBool(true); // bool if first turn
-            OSCMessageOut player2Info =
-                new OSCMessageOut("/StartBattle").AddString(player1.Username).AddInt(player1.TopScore)
-                .AddInt(newSession.MaxShips).AddInt(newSession.MaxMines).AddInt(newSession.FirstMap.Length).AddBool(false);
-
-            player1Connection.Send(player1Info.GetBytes());
-            player2Connection.Send(player2Info.GetBytes());
-            return true;
+            return false;
         }
 
         #endregion
@@ -731,12 +791,20 @@ namespace Network
         /// <param name="location"></param>
         /// <param name="result">
         /// -1 = unexpected
-        /// 0 = everything is correct 
+        ///internal enum PlaceShipResult
+        //{
+        ///    Success = 0,
+        ///    OutOfBounds = 1,
+        ///    CellOccupied = 2,
+        ///    ShipNearby = 3,
+        ///    ShipLimitReached = 4
+        //}
         /// 5 = player not in session
         /// </param>
         /// <returns></returns>
         public string PlaceShip(string username, Ship ship, out int result)
         {
+            result = -1;
             if (!_userSessionKey.ContainsKey(username))
             {
                 result = 5;
@@ -867,7 +935,8 @@ namespace Network
         /// <param name="username"></param>
         /// <param name="location"></param>
         /// <param name="result">
-        /// 0 = sucess
+        /// -1 = ???
+        /// 0 = success
         /// 1 = out of bounds
         /// 2 = already bombed
         /// 3 = empty 
@@ -993,7 +1062,7 @@ namespace Network
                         result = 1;
                         // TODO: battle started logic
                         // send info to both, that the game has started
-                        // broadcast who's turn it is
+                        
                         break;
                     }
 

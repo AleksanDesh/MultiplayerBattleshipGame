@@ -2,6 +2,7 @@
 using Network;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
@@ -92,10 +93,10 @@ namespace Controller
             MarkReady();
         }
         bool IsEnqueueRunning = false;
-        public void BtnEnqueue()
+        public void BtnEnqueue(int queueId)
         {
             if (IsEnqueueRunning) return;
-            Enqueue();
+            Enqueue(queueId);
         }
         #endregion
 
@@ -106,17 +107,24 @@ namespace Controller
             IsJoiningRunning = true;
             try
             {
-                //bool connecting = _server.ConnectUser(_username.text, _password.text);
                 int connected = await _networkClient.Login(_username.text, _password.text);
 
-                Debug.Log($"SeaBattleClientController: Loging to the server" +
-                    $" was {connected == 0} with username {_username.text} and password {_password.text}");
+                Debug.Log($"SeaBattleClientController: Loging to the server was {connected == 0} with username {_username.text} and password {_password.text}");
 
                 if (connected == 0)
-                {
-                    // TODO: make the joining logic here
                     OnJoiningEvent?.Invoke();
-                }
+            }
+            catch (TimeoutException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: Login timeout. {ex.Message}");
+            }
+            catch (IOException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: Login connection error. {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
             }
             finally
             {
@@ -125,29 +133,35 @@ namespace Controller
         }
         private async void Register()
         {
-            IsJoiningRunning = true;
+            IsRegisteringRunning = true;
             try
             {
-                //bool connecting = _server.ConnectUser(_username.text, _password.text);
                 int connected = await _networkClient.Register(_username.text, _password.text);
 
-                Debug.Log($"SeaBattleClientController: Registering to the server" +
-                    $" was {connected == 0} with username {_username.text} and password {_password.text}");
+                Debug.Log($"SeaBattleClientController: Registering to the server was {connected == 0} with username {_username.text} and password {_password.text}");
 
                 if (connected == 0)
-                {
-                    // TODO: make the joining logic here
                     OnRegisteringEvent?.Invoke();
-                }
+            }
+            catch (TimeoutException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: Register timeout. {ex.Message}");
+            }
+            catch (IOException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: Register connection error. {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
             }
             finally
             {
-                IsJoiningRunning = false;
+                IsRegisteringRunning = false;
             }
         }
         public async Task<bool> PlaceShip(Ship ship, int x, int y)
-        {// TODO: Make the controller change the view, then wait for the result,
-         // and if the result is 0, do nothing, else, restore the previous position
+        {
             if (IsPlaceShipRunning) return false;
             IsPlaceShipRunning = true;
 
@@ -156,19 +170,45 @@ namespace Controller
                 int result = await _networkClient.PlaceShip(x, y, ship);
                 return result == 0;
             }
+            catch (TimeoutException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: PlaceShip timeout. {ex.Message}");
+                return false;
+            }
+            catch (IOException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: PlaceShip connection error. {ex.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+                return false;
+            }
             finally
             {
                 IsPlaceShipRunning = false;
             }
         }
         private async void PlaceMine(int x, int y)
-        {// TODO: Make the controller change the view, then wait for the result,
-         // and if the result is 0, do nothing, else, restore the previous position
-
+        {
             IsPlaceMineRunning = true;
             try
             {
                 int result = await _networkClient.PlaceMine(x, y);
+                Debug.Log($"SeaBattleClientController: PlaceMine result = {result}");
+            }
+            catch (TimeoutException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: PlaceMine timeout. {ex.Message}");
+            }
+            catch (IOException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: PlaceMine connection error. {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
             }
             finally
             {
@@ -176,15 +216,28 @@ namespace Controller
             }
         }
         public async Task<bool> Bomb(int x, int y)
-        {// TODO: Make the controller change the view, then wait for the result,
-         // and if the result is 0, do nothing, else, restore the previous position
+        {
             IsBombRunning = true;
             try
             {
                 int result = await _networkClient.Bomb(x, y);
                 bool sucess = result == 0 || result == 6 || result == 3 || result == 4;
                 return sucess;
-                //Debug.Log($"Controller: The result of pressing Bomb is {result}");
+            }
+            catch (TimeoutException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: Bomb timeout. {ex.Message}");
+                return false;
+            }
+            catch (IOException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: Bomb connection error. {ex.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+                return false;
             }
             finally
             {
@@ -197,30 +250,50 @@ namespace Controller
             try
             {
                 int result = await _networkClient.MarkReady();
-                //Debug.Log($"Controller: The result of pressing MarkReady is {result}");
+                Debug.Log($"SeaBattleClientController: MarkReady result = {result}");
+            }
+            catch (TimeoutException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: MarkReady timeout. {ex.Message}");
+            }
+            catch (IOException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: MarkReady connection error. {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
             }
             finally
             {
                 IsMarkReadyRunning = false;
             }
         }
-        public async void Enqueue()
+        public async void Enqueue(int queueId)
         {
             IsEnqueueRunning = true;
             try
             {
-                int result = await _networkClient.Enqueue();
+                int result = await _networkClient.Enqueue(queueId);
                 if (result == 0)
-                {
                     OnEnqueuedEvent?.Invoke();
-                }
-                //Debug.Log($"Controller: The result of pressing Enqueue is {result}");
+            }
+            catch (TimeoutException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: Enqueue timeout. {ex.Message}");
+            }
+            catch (IOException ex)
+            {
+                Debug.LogWarning($"SeaBattleClientController: Enqueue connection error. {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
             }
             finally
             {
                 IsEnqueueRunning = false;
             }
-
         }
         #endregion
 

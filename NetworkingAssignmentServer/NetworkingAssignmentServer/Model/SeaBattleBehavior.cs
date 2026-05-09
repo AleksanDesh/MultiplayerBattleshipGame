@@ -293,11 +293,11 @@ namespace Model
 
         internal enum PlaceShipResult
         {
-            Success = 1,
-            OutOfBounds,
-            CellOccupied,
-            ShipNearby,
-            ShipLimitReached
+            Success = 0,
+            OutOfBounds = 1,
+            CellOccupied = 2,
+            ShipNearby = 3,
+            ShipLimitReached = 4
         }
         internal enum PlaceMineResult
         {

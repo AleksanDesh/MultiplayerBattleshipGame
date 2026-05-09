@@ -17,6 +17,8 @@ namespace Network
 
         public TMP_InputField IpInput;
         public IPAddress ServerIP = IPAddress.Loopback;// IPAddress.Parse("");//IPAddress.Loopback;
+        private const int RequestTimeoutMs = 10000;
+
         TcpNetworkConnection _connection;
         OSCDispatcher _dispatcher;
         public delegate void ServerUnavailableEvent(string reason);
@@ -199,6 +201,19 @@ namespace Network
             OnServerUnavailable?.Invoke(reason);
         }
 
+        private async Task<int> WaitForResponse(TaskCompletionSource<int> tcs, string operation, int timeoutMs = RequestTimeoutMs)
+        {
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs));
+
+            if (completed == tcs.Task)
+                return await tcs.Task;
+
+            var ex = new TimeoutException($"{operation} timed out after {timeoutMs} ms.");
+            tcs.TrySetException(ex);
+            FailConnection(ex.Message, ex);
+            throw ex;
+        }
+
         public bool Connect(int port = 5376)
         {
             try
@@ -254,9 +269,12 @@ namespace Network
 
             var message = new OSCMessageOut("/Login").AddString(username).AddString(password);
             if (!TrySend(message, "Login"))
+            {
+                tcs.TrySetException(new IOException("Login failed: no active connection."));
                 return tcs.Task;
+            }
 
-            return tcs.Task;
+            return WaitForResponse(tcs, "Login");
         }
 
         public Task<int> Register(string username, string password)
@@ -266,9 +284,13 @@ namespace Network
 
             var message = new OSCMessageOut("/Register").AddString(username).AddString(password);
             if (!TrySend(message, "Register"))
+            {
+                var ex = new IOException("Register failed: no active connection.");
+                tcs.TrySetException(ex);
                 return tcs.Task;
+            }
 
-            return tcs.Task;
+            return WaitForResponse(tcs, "Register");
         }
 
         public Task<int> PlaceShip(int x, int y, Ship ship)
@@ -284,9 +306,13 @@ namespace Network
                 .AddBool(ship.Vertical);
 
             if (!TrySend(message, "PlaceShip"))
+            {
+                var ex = new IOException("PlaceShip failed: no active connection.");
+                tcs.TrySetException(ex);
                 return tcs.Task;
+            }
 
-            return tcs.Task;
+            return WaitForResponse(tcs, "PlaceShip");
         }
 
         public Task<int> PlaceMine(int x, int y)
@@ -296,9 +322,13 @@ namespace Network
 
             var message = new OSCMessageOut("/PlaceMine").AddInt(x).AddInt(y);
             if (!TrySend(message, "PlaceMine"))
+            {
+                var ex = new IOException("PlaceMine failed: no active connection.");
+                tcs.TrySetException(ex);
                 return tcs.Task;
+            }
 
-            return tcs.Task;
+            return WaitForResponse(tcs, "PlaceMine");
         }
 
         public Task<int> Bomb(int x, int y)
@@ -308,9 +338,13 @@ namespace Network
 
             var message = new OSCMessageOut("/Bomb").AddInt(x).AddInt(y);
             if (!TrySend(message, "Bomb"))
+            {
+                var ex = new IOException("Bomb failed: no active connection.");
+                tcs.TrySetException(ex);
                 return tcs.Task;
+            }
 
-            return tcs.Task;
+            return WaitForResponse(tcs, "Bomb");
         }
 
         public Task<int> MarkReady()
@@ -320,21 +354,29 @@ namespace Network
 
             var message = new OSCMessageOut("/MarkReady");
             if (!TrySend(message, "MarkReady"))
+            {
+                var ex = new IOException("MarkReady failed: no active connection.");
+                tcs.TrySetException(ex);
                 return tcs.Task;
+            }
 
-            return tcs.Task;
+            return WaitForResponse(tcs, "MarkReady");
         }
 
-        public Task<int> Enqueue()
+        public Task<int> Enqueue(int queueId)
         {
             _tcsEnqueue = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
             var tcs = _tcsEnqueue;
 
-            var message = new OSCMessageOut("/Enqueue");
+            var message = new OSCMessageOut("/Enqueue").AddInt(queueId);
             if (!TrySend(message, "Enqueue"))
+            {
+                var ex = new IOException("Enqueue failed: no active connection.");
+                tcs.TrySetException(ex);
                 return tcs.Task;
+            }
 
-            return tcs.Task;
+            return WaitForResponse(tcs, "Enqueue");
         }
         #endregion
 
