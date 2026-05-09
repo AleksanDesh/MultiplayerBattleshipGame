@@ -492,43 +492,40 @@ namespace Network
 
             OSCLog.WriteLine(debug);
 
-            OSCMessageOut reply = new OSCMessageOut("/Bomb")
+            OSCMessageOut playerBomb = new OSCMessageOut("/Bomb")
                 .AddInt(result)
                 .AddInt(coordinates[0])
                 .AddInt(coordinates[1])
-                .AddBool(true);
+                .AddBool(true)
+                .AddInt(extraHits.Count);
 
-            connection.Send(reply.GetBytes());
+            
 
             if (result == 0 || result == 3 || result == 4) // enum??
             {
                 if (_userTcpKey.TryGetValue(enemyPlayer.Username, out var enemyConnection))
                 {
-                    OSCMessageOut enemyInform = new OSCMessageOut("/Bomb")
+                    OSCMessageOut enemyBomb = new OSCMessageOut("/Bomb")
                         .AddInt(result)
                         .AddInt(coordinates[0])
                         .AddInt(coordinates[1])
-                        .AddBool(false);
+                        .AddBool(false)
+                        .AddInt(extraHits.Count);
 
-                    enemyConnection.Send(enemyInform.GetBytes());
+
                     if (extraHits != null && extraHits.Count > 0)
                         foreach (var hit in extraHits)
-                        {// this is not good xD
-                            OSCMessageOut enemyExtraHit = new OSCMessageOut("/Bomb")
-                                .AddInt((int)hit.Result)
+                        {
+                            enemyBomb.AddInt((int)hit.Result)
                                 .AddInt(hit.X)
-                                .AddInt(hit.Y)
-                                .AddBool(false);
+                                .AddInt(hit.Y);
 
-                            OSCMessageOut extraHit = new OSCMessageOut("/Bomb")
-                                .AddInt((int)hit.Result)
+                            playerBomb.AddInt((int)hit.Result)
                                 .AddInt(hit.X)
-                                .AddInt(hit.Y)
-                                .AddBool(true);
-
-                            connection.Send(extraHit.GetBytes());
-                            enemyConnection.Send(enemyExtraHit.GetBytes());
+                                .AddInt(hit.Y);
                         }
+
+                    enemyConnection.Send(enemyBomb.GetBytes());
                 }
             }
             else if (result == 6)
@@ -541,6 +538,8 @@ namespace Network
                 if (_userTcpKey.TryGetValue(enemyPlayer.Username, out var enemyConnection))
                     enemyConnection.Send(enemyPlayerMessage.GetBytes());
             }
+            // Send the package to the sender no matter what
+            connection.Send(playerBomb.GetBytes());
         }
 
         void ConnectionMarkReadyRequest(OSCMessageIn message, IPEndPoint remote)

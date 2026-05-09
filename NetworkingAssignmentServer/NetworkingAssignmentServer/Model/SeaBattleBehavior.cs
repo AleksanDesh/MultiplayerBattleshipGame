@@ -276,7 +276,8 @@ namespace Model
                 case Cell.CellState.Mine:
                     {
                         cell._state = Cell.CellState.Bombed;
-                        extraHits.Add(new BombTrace(x, y, BombingResult.Mine));
+                        // Don't add this as a hit in extra hits.
+                        //extraHits.Add(new BombTrace(x, y, BombingResult.Mine));
                         enemyParticipant.IncrementLostMines();
 
                         ExplodeMine(session, player, enemyParticipant, x, y, 2, extraHits);

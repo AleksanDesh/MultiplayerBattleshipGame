@@ -149,6 +149,8 @@ namespace Network
 
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            OSCLog.logging = true;
+
             //Connect(); // TODO: make the connection happen in a different place?
         }
 
@@ -426,8 +428,8 @@ namespace Network
             _dispatcher.AddListener("/TryRegister", TryRegister, OSCUtil.INT);
             _dispatcher.AddListener("/PlaceShip", PlaceShip, OSCUtil.INT);
             _dispatcher.AddListener("/PlaceMine", PlaceMine, OSCUtil.INT);
-            // result, x, y, IsForEnemy
-            _dispatcher.AddListener("/Bomb", Bomb, OSCUtil.INT, OSCUtil.INT, OSCUtil.INT, OSCUtil.BOOL);
+            // result, x, y, IsForEnemy, hitCount (how many x, y, result follows)
+            _dispatcher.AddListener("/Bomb", Bomb);
             _dispatcher.AddListener("/MarkReady", MarkReady, OSCUtil.INT);
             _dispatcher.AddListener("/Enqueue", Enqueue, OSCUtil.INT);
             // We receive name, the oponent's victories coumt, ship preset (or game preset)
@@ -514,6 +516,7 @@ namespace Network
             int x = message.ReadInt();
             int y = message.ReadInt();
             bool isMy = message.ReadBool();
+            int hitCount = message.ReadInt();
             var pending = _pendingBombing;
             _pendingBombing = null;
 
@@ -526,6 +529,16 @@ namespace Network
 
             OnBombing?.Invoke(pending);
             pending.Tcs?.TrySetResult(result);
+
+            // package may hold more data if it resulted in blowing a mine
+            for (int i = 0; i < hitCount; i++)
+            {
+                int hitResult = message.ReadInt();
+                int hitX = message.ReadInt();
+                int hitY = message.ReadInt();
+                Debug.Log($"Exploding tile at coords {hitX}, {hitY} with hit result {hitResult}");
+                OnBombing?.Invoke(new Bombpckg(hitX, hitY, hitResult, isMy));
+            }
         }
 
         void MarkReady(OSCMessageIn message, IPEndPoint remote)

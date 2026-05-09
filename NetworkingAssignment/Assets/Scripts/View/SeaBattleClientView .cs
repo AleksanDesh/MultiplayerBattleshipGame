@@ -298,7 +298,12 @@ namespace View
                         tile.CurrentState = Tile.State.Destroyed;
                         var newPrf = Instantiate(XPrefab, tile.transform);
                         newPrf.transform.position += offset;
-                        _destroyedTiles.Add(tile, newPrf);
+                        if (!_destroyedTiles.ContainsKey(tile))
+                            _destroyedTiles.Add(tile, newPrf);
+                        else
+                        {
+                            Debug.LogWarning($"Tile was present in destroyed dictionary with tile {tile.name}");    
+                        }
                         break;
                     }
 
