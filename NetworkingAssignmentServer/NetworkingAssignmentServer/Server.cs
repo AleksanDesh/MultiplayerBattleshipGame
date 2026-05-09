@@ -596,7 +596,7 @@ namespace Network
             if (message.ReadInt() is not int queueId)
                 return;
 
-            if (queueId < 0 || queueId > 5) // bounds
+            if (queueId < 0 || queueId > 6) // bounds (not best to hardcode, but... it is not planned to change)
                 return;
 
             int result = -1;
