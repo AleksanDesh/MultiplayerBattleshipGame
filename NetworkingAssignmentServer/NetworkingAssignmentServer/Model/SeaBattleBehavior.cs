@@ -281,6 +281,8 @@ namespace Model
                         enemyParticipant.IncrementLostMines();
 
                         ExplodeMine(session, player, enemyParticipant, x, y, 2, extraHits);
+                        // Normal hit: attacker keeps turn.
+                        session._participantTurn = participant.Side;
 
                         if (IfLost(session, enemyParticipant))
                         {

@@ -2,6 +2,7 @@ using Model;
 using NetworkConnections;
 using OSCTools;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -87,19 +88,36 @@ namespace Network
         private Bombpckg _pendingBombing;
         public class Bombpckg
         {
-            public Vector2Int location;
+            public readonly struct ExtraBombHit
+            {
+                public readonly int X;
+                public readonly int Y;
+                public readonly int Result;
+                public ExtraBombHit(int x, int y, int result)
+                {
+                    X = x;
+                    Y = y;
+                    Result = result;
+                }
+            }
+            public readonly Vector2Int location;
             public int result;
             // If true => bombing enemy location
-            public bool IsForEnemy;
+            public readonly bool IsForEnemy;
+            public List<ExtraBombHit> ExtraHits { get; }
             public TaskCompletionSource<int> Tcs { get; }
+
             public Bombpckg(int x, int y, int result, bool isForEnemy)
             {
                 location = new Vector2Int(x, y);
-                Tcs = new TaskCompletionSource<int>();
                 this.result = result;
                 IsForEnemy = isForEnemy;
+                ExtraHits = new List<ExtraBombHit>();
+                Tcs = new TaskCompletionSource<int>();
             }
         }
+
+        
 
         public delegate void MarkReadyEvent(int result);
         public event MarkReadyEvent OnMarkReady;
@@ -527,8 +545,7 @@ namespace Network
             else
                 pending.result = result;
 
-            OnBombing?.Invoke(pending);
-            pending.Tcs?.TrySetResult(result);
+
 
             // package may hold more data if it resulted in blowing a mine
             for (int i = 0; i < hitCount; i++)
@@ -537,8 +554,12 @@ namespace Network
                 int hitX = message.ReadInt();
                 int hitY = message.ReadInt();
                 Debug.Log($"Exploding tile at coords {hitX}, {hitY} with hit result {hitResult}");
-                OnBombing?.Invoke(new Bombpckg(hitX, hitY, hitResult, isMy));
+                pending.ExtraHits.Add(new Bombpckg.ExtraBombHit(hitX, hitY, hitResult));
+                
             }
+
+            OnBombing?.Invoke(pending);
+            pending.Tcs?.TrySetResult(result);
         }
 
         void MarkReady(OSCMessageIn message, IPEndPoint remote)

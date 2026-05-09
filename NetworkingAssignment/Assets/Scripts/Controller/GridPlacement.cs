@@ -363,11 +363,11 @@ public class GridPlacement : MonoBehaviour
     }
 
     void UpdateTurn(Bombpckg pckg)
-    {// if sucessefully bombed enemy tile, make one more turn
-        if (pckg.result == 0 && pckg.IsForEnemy)
+    {// if sucessefully bombed enemy tile (0) or mine (4), make one more turn
+        if ((pckg.result == 0 || pckg.result == 4) && pckg.IsForEnemy)
             _isMyTurn = true;
         // if was not my turn and it failed => my turn (ignore result 6)
-        if (pckg.result != 0 && !pckg.IsForEnemy)
+        if ((pckg.result != 0 && pckg.result != 4) && !pckg.IsForEnemy)
             _isMyTurn = true;
         
     }

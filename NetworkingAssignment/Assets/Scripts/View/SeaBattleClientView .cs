@@ -281,49 +281,131 @@ namespace View
         /// 6 = victory
         void BombResult(Bombpckg package)
         {
-            var grid = package.IsForEnemy ? EnemyGrid : UserGrid;
-            var offset = package.IsForEnemy ? new Vector3(0, 0, 0) : new Vector3(0, 1, 0);
-
-            if (!grid.TryGetTile(package.location, out var tile))
+            if (package == null)
+            {
+                Debug.LogWarning("BombResult called with null package.");
                 return;
+            }
 
             UpdateTurnVisually(package);
 
-            switch (package.result)
+            ApplyBombHit(package.location, package.result, package.IsForEnemy);
+
+            if (package.ExtraHits != null)
+            {
+                foreach (var hit in package.ExtraHits)
+                {
+                    ApplyBombHit(new Vector2Int(hit.X, hit.Y), hit.Result, package.IsForEnemy);
+                }
+            }
+        }
+
+        private void ApplyBombHit(Vector2Int location, int result, bool isForEnemy)
+        {
+            var grid = isForEnemy ? EnemyGrid : UserGrid;
+            var offset = isForEnemy ? new Vector3(0, 0, 0) : new Vector3(0, 1, 0);
+
+            if (!grid.TryGetTile(location, out var tile))
+            {
+                Debug.LogWarning($"BombResult: tile not found at {location.x},{location.y}");
+                return;
+            }
+
+            switch (result)
             {
                 case 0:
                 case 6:
                     {
-                        // Use the apropriate grid, and spawn X there (add blowing VFX?)
                         tile.CurrentState = Tile.State.Destroyed;
-                        var newPrf = Instantiate(XPrefab, tile.transform);
-                        newPrf.transform.position += offset;
+
                         if (!_destroyedTiles.ContainsKey(tile))
+                        {
+                            var newPrf = Instantiate(XPrefab, tile.transform);
+                            newPrf.transform.position += offset;
                             _destroyedTiles.Add(tile, newPrf);
+                        }
                         else
                         {
-                            Debug.LogWarning($"Tile was present in destroyed dictionary with tile {tile.name}");    
+                            Debug.LogWarning($"Tile was present in destroyed dictionary with tile {tile.name}");
                         }
+
                         break;
                     }
 
                 case 3:
                     {
-                        // Use the apropriate grid and spawn bomb
                         tile.CurrentState = Tile.State.Bombed;
-                        var newPrf = Instantiate(BombPrefab, tile.transform);
-                        _bombedTiles.Add(tile, newPrf);
+
+                        if (!_bombedTiles.ContainsKey(tile))
+                        {
+                            var newPrf = Instantiate(BombPrefab, tile.transform);
+                            _bombedTiles.Add(tile, newPrf);
+                        }
+                        else
+                        {
+                            Debug.LogWarning($"Tile was present in bombed dictionary with tile {tile.name}");
+                        }
+
+                        break;
+                    }
+                case 4:
+                    {// TODO: This is the mine. Make explosion VFX?
+                        break;
+                    }
+
+                default:
+                    {
+                        Debug.LogWarning($"BombResult: unexpected bomb result {result} at {location.x},{location.y}");
                         break;
                     }
             }
         }
 
+        //void BombResult(Bombpckg package)
+        //{
+        //    var grid = package.IsForEnemy ? EnemyGrid : UserGrid;
+        //    var offset = package.IsForEnemy ? new Vector3(0, 0, 0) : new Vector3(0, 1, 0);
+
+        //    if (!grid.TryGetTile(package.location, out var tile))
+        //        return;
+
+        //    UpdateTurnVisually(package);
+
+        //    switch (package.result)
+        //    {
+        //        case 0:
+        //        case 6:
+        //            {
+        //                // Use the apropriate grid, and spawn X there (add blowing VFX?)
+        //                tile.CurrentState = Tile.State.Destroyed;
+        //                var newPrf = Instantiate(XPrefab, tile.transform);
+        //                newPrf.transform.position += offset;
+        //                if (!_destroyedTiles.ContainsKey(tile))
+        //                    _destroyedTiles.Add(tile, newPrf);
+        //                else
+        //                {
+        //                    Debug.LogWarning($"Tile was present in destroyed dictionary with tile {tile.name}");    
+        //                }
+        //                break;
+        //            }
+
+        //        case 3:
+        //            {
+        //                // Use the apropriate grid and spawn bomb
+        //                tile.CurrentState = Tile.State.Bombed;
+        //                var newPrf = Instantiate(BombPrefab, tile.transform);
+        //                _bombedTiles.Add(tile, newPrf);
+        //                break;
+        //            }
+        //    }
+        //}
+
         void UpdateTurnVisually(Bombpckg pckg)
-        {// if sucessefully bombed enemy tile, make one more turn
-            if (pckg.result == 0 && pckg.IsForEnemy)
+        {// if sucessefully bombed enemy tile or mine, make one more turn
+            if ((pckg.result == 0 || pckg.result == 4) && pckg.IsForEnemy)
                 _resultText.text = $"Your turn, bomb";
-            // if was not my turn and it failed => my turn (ignore result 6)
-            else if (pckg.result != 0 && !pckg.IsForEnemy)
+            // if was not my turn and it failed (thus none of the above at the same time) => my turn (ignore result 6)
+            else if ((pckg.result != 0 && pckg.result != 4) && !pckg.IsForEnemy)
                 _resultText.text = $"Your turn, bomb";
             else
                 _resultText.text = $"Enemy turn, wait";

@@ -473,7 +473,7 @@ namespace Network
             }
 
             int result;
-            List<BombTrace>? extraHits = new List<BombTrace>();
+            List<BombTrace> extraHits = new List<BombTrace>();
             string debug;
 
             try
@@ -596,7 +596,7 @@ namespace Network
             if (message.ReadInt() is not int queueId)
                 return;
 
-            if (queueId < 0 || queueId > 5) // bounds
+            if (queueId < 0 || queueId > 6) // bounds (not best to hardcode, but... it is not planned to change)
                 return;
 
             int result = -1;
@@ -904,10 +904,10 @@ namespace Network
         /// 5 = not in a session
         /// 6 = victory </param>
         /// <returns></returns>
-        public string Bomb(string username, int[] location, out int result, out List<SeaBattleBehavior.BombTrace>? extraHits)
+        public string Bomb(string username, int[] location, out int result, out List<SeaBattleBehavior.BombTrace> extraHits)
         {
             result = -1;
-            extraHits = null;
+            extraHits = new List<BombTrace>();
             if (!_userSessionKey.ContainsKey(username))
             {
                 result = 5;
