@@ -3,6 +3,7 @@ using Model;
 using NUnit.Framework;
 using System.Collections.Generic;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -50,6 +51,8 @@ namespace View
         [SerializeField] public Transform ShipSpawnLocation;
         [SerializeField] public GameObject XPrefab;
         [SerializeField] public GameObject BombPrefab;
+        public GameObject MineBlowVfxPrefab;
+        public GameObject ShipBlowVfxPrefab;
         Dictionary<Tile, GameObject> _destroyedTiles = new Dictionary<Tile, GameObject>();
         Dictionary<Tile, GameObject> _bombedTiles = new Dictionary<Tile, GameObject>();
 
@@ -325,6 +328,12 @@ namespace View
                             var newPrf = Instantiate(XPrefab, tile.transform);
                             newPrf.transform.position += offset;
                             _destroyedTiles.Add(tile, newPrf);
+
+
+                            // Apply blowing
+                            GameObject vfx = Instantiate(ShipBlowVfxPrefab, tile.transform);
+                            vfx.transform.position += offset;
+                            Destroy(vfx, 8);
                         }
                         else
                         {
@@ -342,6 +351,8 @@ namespace View
                         {
                             var newPrf = Instantiate(BombPrefab, tile.transform);
                             _bombedTiles.Add(tile, newPrf);
+
+
                         }
                         else
                         {
@@ -351,7 +362,12 @@ namespace View
                         break;
                     }
                 case 4:
-                    {// TODO: This is the mine. Make explosion VFX?
+                    {
+                        // Apply blowing
+                        GameObject vfx = Instantiate(MineBlowVfxPrefab, tile.transform);
+                        vfx.transform.localScale = Vector3.one + Vector3.one;
+                        vfx.transform.position += offset;
+                        Destroy(vfx, 8);
                         break;
                     }
 

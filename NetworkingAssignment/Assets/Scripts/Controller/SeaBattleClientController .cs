@@ -192,6 +192,7 @@ namespace Controller
         }
         public async Task<bool> PlaceMine(Mine mine, int x, int y)
         {
+            if (IsPlaceMineRunning) return false;
             IsPlaceMineRunning = true;
             try
             {
@@ -221,6 +222,7 @@ namespace Controller
         }
         public async Task<bool> Bomb(int x, int y)
         {
+            if (IsBombRunning) return false;
             IsBombRunning = true;
             try
             {
