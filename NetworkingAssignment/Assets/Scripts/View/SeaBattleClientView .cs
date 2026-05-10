@@ -329,6 +329,7 @@ namespace View
                             newPrf.transform.position += offset;
                             _destroyedTiles.Add(tile, newPrf);
 
+                            SoundManager.Instance.PlayExplosionSound();
 
                             // Apply blowing
                             GameObject vfx = Instantiate(ShipBlowVfxPrefab, tile.transform);
@@ -347,6 +348,7 @@ namespace View
                     {
                         tile.CurrentState = Tile.State.Bombed;
 
+
                         if (!_bombedTiles.ContainsKey(tile))
                         {
                             var newPrf = Instantiate(BombPrefab, tile.transform);
@@ -363,6 +365,14 @@ namespace View
                     }
                 case 4:
                     {
+                        tile.CurrentState = Tile.State.Bombed;
+                        SoundManager.Instance.PlayUnderwaterExplosionSound();
+                        if (!_bombedTiles.ContainsKey(tile))
+                        {
+                            var newPrf = Instantiate(BombPrefab, tile.transform);
+                            _bombedTiles.Add(tile, newPrf);
+                        }
+
                         // Apply blowing
                         GameObject vfx = Instantiate(MineBlowVfxPrefab, tile.transform);
                         vfx.transform.localScale = Vector3.one + Vector3.one;
@@ -379,44 +389,6 @@ namespace View
             }
         }
 
-        //void BombResult(Bombpckg package)
-        //{
-        //    var grid = package.IsForEnemy ? EnemyGrid : UserGrid;
-        //    var offset = package.IsForEnemy ? new Vector3(0, 0, 0) : new Vector3(0, 1, 0);
-
-        //    if (!grid.TryGetTile(package.location, out var tile))
-        //        return;
-
-        //    UpdateTurnVisually(package);
-
-        //    switch (package.result)
-        //    {
-        //        case 0:
-        //        case 6:
-        //            {
-        //                // Use the apropriate grid, and spawn X there (add blowing VFX?)
-        //                tile.CurrentState = Tile.State.Destroyed;
-        //                var newPrf = Instantiate(XPrefab, tile.transform);
-        //                newPrf.transform.position += offset;
-        //                if (!_destroyedTiles.ContainsKey(tile))
-        //                    _destroyedTiles.Add(tile, newPrf);
-        //                else
-        //                {
-        //                    Debug.LogWarning($"Tile was present in destroyed dictionary with tile {tile.name}");    
-        //                }
-        //                break;
-        //            }
-
-        //        case 3:
-        //            {
-        //                // Use the apropriate grid and spawn bomb
-        //                tile.CurrentState = Tile.State.Bombed;
-        //                var newPrf = Instantiate(BombPrefab, tile.transform);
-        //                _bombedTiles.Add(tile, newPrf);
-        //                break;
-        //            }
-        //    }
-        //}
 
         void UpdateTurnVisually(Bombpckg pckg)
         {// if sucessefully bombed enemy tile or mine, make one more turn
@@ -425,9 +397,13 @@ namespace View
             // if was not my turn and it failed (thus none of the above at the same time) => my turn (ignore result 6)
             else if ((pckg.result != 0 && pckg.result != 4) && !pckg.IsForEnemy)
                 _resultText.text = $"Your turn, bomb";
+            // If somehow we pressed outside of bounds or pressed on bombed cell, our turn
+            else if (pckg.result == 1 || pckg.result == 2)
+            {
+                _resultText.text = $"Your turn, bomb";
+            }
             else
                 _resultText.text = $"Enemy turn, wait";
-
         }
 
         void VictoryResult(bool isWinner)
@@ -437,11 +413,13 @@ namespace View
 
             if (isWinner)
             {
+                SoundManager.Instance.PlayVictorySound();
                 OnVictoryEvent?.Invoke();
                 globalMessager.Show("You WON");
             }
             else
             {
+                SoundManager.Instance.PlayLossSound();
                 OnLoseEvent?.Invoke();
                 globalMessager.Show("You LOOOOOST");
             }

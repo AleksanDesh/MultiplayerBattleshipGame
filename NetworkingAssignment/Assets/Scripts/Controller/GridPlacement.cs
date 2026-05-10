@@ -205,7 +205,7 @@ public class GridPlacement : MonoBehaviour
 
         var tmpDraggedShip = _draggedShip;
         _draggedShip = null;
-
+        SoundManager.Instance.PlayShipPlacedSound();
         if (!IgnoreServer)
         {
             bool serverAccepted = await _controller.PlaceShip(
@@ -262,7 +262,7 @@ public class GridPlacement : MonoBehaviour
 
         var tmpDraggedMine = _draggedMine;
         _draggedMine = null;
-
+        SoundManager.Instance.PlayMinePlacedSound();
         if (!IgnoreServer)
         {
             bool serverAccepted = await _controller.PlaceMine(

@@ -1,6 +1,8 @@
+using Network;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class ButtonHoverHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
@@ -8,18 +10,21 @@ public class ButtonHoverHandler : MonoBehaviour, IPointerEnterHandler, IPointerE
     [SerializeField] private GridManager Grid;
     [SerializeField] private GameObject ShipsPreset;
     [SerializeField] private Transform PrestSpawnLocation;
-    private GameObject spawnedPreset;
+    private GameObject _spawnedPreset;
+    private VisualDisabler _disabler;
     void Awake()
     {
-        spawnedPreset = Instantiate(ShipsPreset, PrestSpawnLocation.position, PrestSpawnLocation.rotation);
-        spawnedPreset.SetActive(false);
+        _spawnedPreset = Instantiate(ShipsPreset, PrestSpawnLocation.position, PrestSpawnLocation.rotation);
+        _spawnedPreset.SetActive(false);
+        this.gameObject.GetComponent<Button>().onClick.AddListener(ForwardForDisabling);
+        _disabler = FindFirstObjectByType<VisualDisabler>();
     }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
         //Debug.Log("Mouse entered button");
         Grid.DisplayGridVisually(GridSize, GridSize);
-        spawnedPreset.SetActive(true);
+        _spawnedPreset.SetActive(true);
 
         // hover logic here
     }
@@ -28,7 +33,14 @@ public class ButtonHoverHandler : MonoBehaviour, IPointerEnterHandler, IPointerE
     {
         //Debug.Log("Mouse exited button");
         Grid.ClearGridVisually();
-        spawnedPreset.SetActive(false);
+        _spawnedPreset.SetActive(false);
         // exit logic here
     }
+
+   void ForwardForDisabling()
+    {
+        _disabler.DisableOnStartBattle(_spawnedPreset, Grid);
+    }
+
+
 }

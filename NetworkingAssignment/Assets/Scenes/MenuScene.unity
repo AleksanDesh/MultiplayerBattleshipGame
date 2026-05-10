@@ -201,6 +201,8 @@ MonoBehaviour:
   ShipSpawnLocation: {fileID: 0}
   XPrefab: {fileID: 4414142834413214405, guid: 8095dc9d9982648488df4efda630012f, type: 3}
   BombPrefab: {fileID: 4474419765906776737, guid: 1a8db013a49ad51438fab0e592cc42f4, type: 3}
+  MineBlowVfxPrefab: {fileID: 0}
+  ShipBlowVfxPrefab: {fileID: 0}
 --- !u!4 &113430414
 Transform:
   m_ObjectHideFlags: 0
@@ -578,6 +580,166 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &671532224
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 671532227}
+  - component: {fileID: 671532226}
+  - component: {fileID: 671532225}
+  m_Layer: 0
+  m_Name: SoundManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!82 &671532225
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 671532224}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 0
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &671532226
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 671532224}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f77ac36805345ad47b8d67502a41eb6a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SoundManager
+  hoverSound: {fileID: 8300000, guid: 5dbf9906a88f81d41a7adb261150c36a, type: 3}
+  HoverVolume: 0.1
+  clickSound: {fileID: 8300000, guid: e41f29c8bc9050e4c837cd4ebb6b6fee, type: 3}
+  ClickVolume: 0.07
+  shipPlacedSound: {fileID: 8300000, guid: 3e59c50fd62d86549855671f0db30f8e, type: 3}
+  ShipPlacedVolume: 1
+  minePlacedSound: {fileID: 8300000, guid: 3e59c50fd62d86549855671f0db30f8e, type: 3}
+  MinePlacedVolume: 1
+  explosionSound: {fileID: 8300000, guid: 343290dffb2955a45ac1f67b35c29815, type: 3}
+  ExplosionVolume: 1
+  underwaterExplosionSound: {fileID: 8300000, guid: 698bc1eb3c8af344bb79f407eabcad7d, type: 3}
+  UnderwaterExplosionVolume: 1
+  victorySound: {fileID: 8300000, guid: bd8dfb3c6ba04b14388f29990743679d, type: 3}
+  VictoryVolume: 1
+  lossSound: {fileID: 8300000, guid: efaaa8d0757073840859a9abbac41089, type: 3}
+  LossVolume: 1
+  backgroundMusic: {fileID: 0}
+  MusicVolume: 0.5
+--- !u!4 &671532227
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 671532224}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 141.35231, y: 0, z: -37.75563}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &773774290
 GameObject:
   m_ObjectHideFlags: 0
@@ -772,6 +934,7 @@ GameObject:
   - component: {fileID: 1194777432}
   - component: {fileID: 1194777431}
   - component: {fileID: 1194777434}
+  - component: {fileID: 1194777435}
   m_Layer: 5
   m_Name: PlayBtn
   m_TagString: Untagged
@@ -905,6 +1068,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5be6916a508aa1f46b8c4733ff08b60e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SceneLoader
+--- !u!114 &1194777435
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1194777429}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2f621b585b2bfe44b6a293d9bbbe58a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ButtonSounds
 --- !u!1 &1202438667
 GameObject:
   m_ObjectHideFlags: 0
@@ -1513,6 +1688,7 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 240400496}
+  - {fileID: 671532227}
   - {fileID: 1174377027}
   - {fileID: 1668649379}
   - {fileID: 1807309801}

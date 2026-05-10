@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -45,6 +46,12 @@ public class GlobalMessageUI : MonoBehaviour
 
     public void Hide()
     {
+        StartCoroutine(HideAfterFrame());
+    }
+
+    IEnumerator HideAfterFrame()
+    {
+        yield return new WaitForEndOfFrame();
         panel.SetActive(false);
     }
 }
