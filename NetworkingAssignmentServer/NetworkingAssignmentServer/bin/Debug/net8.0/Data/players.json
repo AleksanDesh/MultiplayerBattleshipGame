@@ -3,7 +3,7 @@
     "Id": 1,
     "Username": "minekillerr",
     "Password": "123456789",
-    "TopScore": 11
+    "TopScore": 13
   },
   {
     "Id": 2,
@@ -21,6 +21,6 @@
     "Id": 4,
     "Username": "Nik",
     "Password": "kniga",
-    "TopScore": 0
+    "TopScore": 2
   }
 ]

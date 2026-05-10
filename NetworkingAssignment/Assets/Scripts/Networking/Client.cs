@@ -15,10 +15,6 @@ namespace Network
     public class Client : MonoBehaviour
     { // TODO: Add error displaying dictionary + make it Singleton
         public static Client Instance { get; private set; }
-
-        //public IPAddress ServerIP = IPAddress.Loopback;// IPAddress.Parse("");//IPAddress.Loopback;
-
-
         private const int RequestTimeoutMs = 10000;
         public delegate void OnTimeoutEvent(TimeoutInfo info);
         public event OnTimeoutEvent OnTimeout;
@@ -332,8 +328,6 @@ namespace Network
                 _tcpClient.Connect(new IPEndPoint(serverIp, port));
 
                 _connection = new TcpNetworkConnection(_tcpClient);
-
-
                 _dispatcher = new OSCDispatcher();
                 _dispatcher.ShowIncomingMessages = true;
                 Initialize();

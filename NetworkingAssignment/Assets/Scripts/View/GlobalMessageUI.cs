@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 /// <summary>
 /// Used to display messages across scenes.
@@ -27,6 +28,13 @@ public class GlobalMessageUI : MonoBehaviour
         closeButton.onClick.AddListener(Hide);
 
         Hide();
+    }
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Hide();
+        }
     }
 
     public void Show(string message)

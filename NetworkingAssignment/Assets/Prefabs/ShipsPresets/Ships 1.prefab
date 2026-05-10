@@ -46,7 +46,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 361597023960939395, guid: 42dbb7228cc8bf24caac6a9f519a7b2c, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.5
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 361597023960939395, guid: 42dbb7228cc8bf24caac6a9f519a7b2c, type: 3}
       propertyPath: m_LocalPosition.z
@@ -83,6 +83,10 @@ PrefabInstance:
     - target: {fileID: 2451621083491511258, guid: 42dbb7228cc8bf24caac6a9f519a7b2c, type: 3}
       propertyPath: m_Name
       value: Ship 1x1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7207780764179547047, guid: 42dbb7228cc8bf24caac6a9f519a7b2c, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.5
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
