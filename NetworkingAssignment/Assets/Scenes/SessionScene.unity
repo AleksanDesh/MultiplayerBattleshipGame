@@ -1827,6 +1827,18 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 969793682}
+        m_TargetAssemblyTypeName: GlobalMessageUI, Assembly-CSharp
+        m_MethodName: Show
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 2
+          m_FloatArgument: 0
+          m_StringArgument: YOU WON
+          m_BoolArgument: 0
+        m_CallState: 2
   OnLoseEvent:
     m_PersistentCalls:
       m_Calls:
@@ -1840,6 +1852,18 @@ MonoBehaviour:
           m_IntArgument: 2
           m_FloatArgument: 0
           m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+      - m_Target: {fileID: 969793682}
+        m_TargetAssemblyTypeName: GlobalMessageUI, Assembly-CSharp
+        m_MethodName: Show
+        m_Mode: 5
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 2
+          m_FloatArgument: 0
+          m_StringArgument: You lost
           m_BoolArgument: 0
         m_CallState: 2
   OnLoginEvent:
@@ -2046,6 +2070,74 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 791e3f2c93ff48b449766fe26dbc7c0d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InvertUI
+--- !u!1001 &969793681
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 5926632689907523702, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_Name
+      value: PersistentUI
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 27.61135
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 21.47687
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+--- !u!114 &969793682 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4154836836349870341, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+  m_PrefabInstance: {fileID: 969793681}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f49a014e697d0945a5a205f78b172c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GlobalMessageUI
 --- !u!1 &1001550409
 GameObject:
   m_ObjectHideFlags: 0
@@ -3741,6 +3833,7 @@ CanvasRenderer:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
+  - {fileID: 969793681}
   - {fileID: 330585546}
   - {fileID: 410087041}
   - {fileID: 832575519}

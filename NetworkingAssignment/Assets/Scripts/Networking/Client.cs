@@ -16,9 +16,47 @@ namespace Network
     { // TODO: Add error displaying dictionary + make it Singleton
         public static Client Instance { get; private set; }
 
-        public TMP_InputField IpInput;
         public IPAddress ServerIP = IPAddress.Loopback;// IPAddress.Parse("");//IPAddress.Loopback;
+
+
         private const int RequestTimeoutMs = 10000;
+        public delegate void OnTimeoutEvent(TimeoutInfo info);
+        public event OnTimeoutEvent OnTimeout;
+        public readonly struct TimeoutInfo
+        {
+            public string Operation { get; }
+            public int TimeoutMs { get; }
+            public string Message { get; }
+            public bool WasConnected { get; }
+            public DateTime TimestampUtc { get; }
+            public Exception Exception { get; }
+
+            public TimeoutInfo(
+                string operation,
+                int timeoutMs,
+                string message,
+                bool wasConnected,
+                DateTime timestampUtc,
+                Exception exception)
+            {
+                Operation = operation;
+                TimeoutMs = timeoutMs;
+                Message = message;
+                WasConnected = wasConnected;
+                TimestampUtc = timestampUtc;
+                Exception = exception;
+            }
+
+            public override string ToString()
+            {
+                return
+                    $"Operation={Operation}, " +
+                    $"TimeoutMs={TimeoutMs}, " +
+                    $"WasConnected={WasConnected}, " +
+                    $"TimestampUtc={TimestampUtc}, " +
+                    $"Message={Message}";
+            }
+        }
 
         TcpNetworkConnection _connection;
         OSCDispatcher _dispatcher;
@@ -172,12 +210,6 @@ namespace Network
             //Connect(); // TODO: make the connection happen in a different place?
         }
 
-        public void ConnectBtn()
-        {
-            ServerIP = IPAddress.Parse(IpInput.text);
-
-            Connect();
-        }
         private void OnDisable() => ShutdownConnection();
         private void OnDestroy() => ShutdownConnection();
         private void OnApplicationQuit() => ShutdownConnection();
@@ -208,6 +240,16 @@ namespace Network
             _tcsMarkReady?.TrySetException(ioEx);
             _tcsEnqueue?.TrySetException(ioEx);
 
+            CleanupConnection();
+
+            if (ex != null) Debug.LogWarning(ex);
+            else Debug.LogWarning(reason);
+
+            OnServerUnavailable?.Invoke(reason);
+        }
+
+        private void ResetRequestState()
+        {
             _tcsLogin = null;
             _tcsRegister = null;
             _pendingShipPlacement = null;
@@ -215,24 +257,66 @@ namespace Network
             _pendingBombing = null;
             _tcsMarkReady = null;
             _tcsEnqueue = null;
-
-            if (ex != null) Debug.LogException(ex);
-            else Debug.LogWarning(reason);
-
-            ShutdownConnection();
-            OnServerUnavailable?.Invoke(reason);
         }
+
+        private void CleanupConnection()
+        {
+            try { _connection?.Close(); } catch { }
+            try { _tcpClient?.Close(); } catch { }
+
+            _connection = null;
+            _tcpClient = null;
+            _dispatcher = null;
+
+            ResetRequestState();
+        }
+
 
         private async Task<int> WaitForResponse(TaskCompletionSource<int> tcs, string operation, int timeoutMs = RequestTimeoutMs)
         {
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeoutMs));
+            var delayTask = Task.Delay(timeoutMs);
+            var completed = await Task.WhenAny(tcs.Task, delayTask);
 
+            // Request completed normally
             if (completed == tcs.Task)
                 return await tcs.Task;
 
-            var ex = new TimeoutException($"{operation} timed out after {timeoutMs} ms.");
+            // Timeout happened
+            bool wasConnected =
+                _tcpClient != null &&
+                _tcpClient.Connected &&
+                _connection != null;
+
+            var ex = new TimeoutException(
+                $"{operation} timed out after {timeoutMs} ms."
+            );
+
+            var timeoutInfo = new TimeoutInfo(
+                operation,
+                timeoutMs,
+                $"{operation} request timed out.",
+                wasConnected,
+                DateTime.UtcNow,
+                ex
+            );
+
+            // Fire timeout event BEFORE shutdown
+            try
+            {
+                OnTimeout?.Invoke(timeoutInfo);
+            }
+            catch (Exception eventEx)
+            {
+                Debug.LogException(eventEx);
+            }
+
             tcs.TrySetException(ex);
-            FailConnection(ex.Message, ex);
+
+            FailConnection(
+                $"[{operation}] Request timeout after {timeoutMs} ms.",
+                ex
+            );
+
             throw ex;
         }
 
@@ -240,7 +324,7 @@ namespace Network
         {
             try
             {
-                ShutdownConnection();
+                CleanupConnection();
                 _serverUnavailableRaised = false;
 
                 _tcpClient = new TcpClient();
@@ -258,7 +342,7 @@ namespace Network
             catch (Exception exp)
             {
                 Debug.LogException(exp);
-                ShutdownConnection();
+                CleanupConnection();
                 return false;
             }
         }

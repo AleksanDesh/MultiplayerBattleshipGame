@@ -85,6 +85,7 @@ namespace View
             client.OnVictory += VictoryResult;
             client.OnLogin += Login;
             client.OnRegister += Register;
+            client.OnTimeout += TimeoutViewChange;
         }
 
         private void OnDisable()
@@ -100,6 +101,7 @@ namespace View
             client.OnVictory -= VictoryResult;
             client.OnLogin -= Login;
             client.OnRegister -= Register;
+            client.OnTimeout -= TimeoutViewChange;
         }
 
         /// -1 = something went REALLY WRONG
@@ -361,45 +363,6 @@ namespace View
             }
         }
 
-        //void BombResult(Bombpckg package)
-        //{
-        //    var grid = package.IsForEnemy ? EnemyGrid : UserGrid;
-        //    var offset = package.IsForEnemy ? new Vector3(0, 0, 0) : new Vector3(0, 1, 0);
-
-        //    if (!grid.TryGetTile(package.location, out var tile))
-        //        return;
-
-        //    UpdateTurnVisually(package);
-
-        //    switch (package.result)
-        //    {
-        //        case 0:
-        //        case 6:
-        //            {
-        //                // Use the apropriate grid, and spawn X there (add blowing VFX?)
-        //                tile.CurrentState = Tile.State.Destroyed;
-        //                var newPrf = Instantiate(XPrefab, tile.transform);
-        //                newPrf.transform.position += offset;
-        //                if (!_destroyedTiles.ContainsKey(tile))
-        //                    _destroyedTiles.Add(tile, newPrf);
-        //                else
-        //                {
-        //                    Debug.LogWarning($"Tile was present in destroyed dictionary with tile {tile.name}");    
-        //                }
-        //                break;
-        //            }
-
-        //        case 3:
-        //            {
-        //                // Use the apropriate grid and spawn bomb
-        //                tile.CurrentState = Tile.State.Bombed;
-        //                var newPrf = Instantiate(BombPrefab, tile.transform);
-        //                _bombedTiles.Add(tile, newPrf);
-        //                break;
-        //            }
-        //    }
-        //}
-
         void UpdateTurnVisually(Bombpckg pckg)
         {// if sucessefully bombed enemy tile or mine, make one more turn
             if ((pckg.result == 0 || pckg.result == 4) && pckg.IsForEnemy)
@@ -418,6 +381,13 @@ namespace View
                 OnVictoryEvent?.Invoke();
             else
                 OnLoseEvent?.Invoke();
+        }
+
+        void TimeoutViewChange(TimeoutInfo info)
+        {
+            var globalMessager = GlobalMessageUI.Instance;
+            globalMessager.Show("Timed out with message: " + info.Message);
+            SceneManager.LoadScene(0); // Load loging screen
         }
 
         private void ShowResult(string message)

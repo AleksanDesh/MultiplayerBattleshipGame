@@ -1123,6 +1123,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 06db5a7a9d4e12a459f94d364274d781, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Controller.SeaBattleClientController
+  IpInput: {fileID: 337188384}
   _username: {fileID: 1521666939}
   _password: {fileID: 1498386377}
   OnJoiningEvent:
@@ -1940,7 +1941,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a10ef3f7e481cb49b2473990a2f3d10, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Network.Client
-  IpInput: {fileID: 337188384}
 --- !u!4 &1174377027
 Transform:
   m_ObjectHideFlags: 0
@@ -3390,8 +3390,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1174377026}
-        m_TargetAssemblyTypeName: Network.Client, Assembly-CSharp
+      - m_Target: {fileID: 583730634}
+        m_TargetAssemblyTypeName: Controller.SeaBattleClientController, Assembly-CSharp
         m_MethodName: ConnectBtn
         m_Mode: 1
         m_Arguments:
@@ -3440,10 +3440,68 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2137487396}
   m_CullTransparentMesh: 1
+--- !u!1001 &2180117202931285093
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 5926632689907523702, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_Name
+      value: PersistentUI
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 31.7354
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -12.91286
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8131839513802595934, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: bad4ff5864799174ca34a5bee802439e, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
+  - {fileID: 2180117202931285093}
   - {fileID: 1174377027}
   - {fileID: 1668649379}
   - {fileID: 1807309801}

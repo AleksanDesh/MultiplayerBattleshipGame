@@ -3,6 +3,7 @@ using Network;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
@@ -15,6 +16,7 @@ namespace Controller
     {
         //[SerializeField] private Server _server;
 
+        [SerializeField] private TMP_InputField IpInput;
         [SerializeField] private TMP_InputField _username;
         [SerializeField] private TMP_InputField _password;
 
@@ -50,6 +52,19 @@ namespace Controller
         }
 
         #region ButtonMethods
+        public void ConnectBtn()
+        {
+            var text = IpInput.text.Trim();
+
+            if (!IPAddress.TryParse(text, out var ip))
+            {
+                GlobalMessageUI.Instance.Show($"Invalid IP address: '{text}'");
+                return;
+            }
+            bool connected = _networkClient.Connect();
+            GlobalMessageUI.Instance.Show(connected ? "Connect succeeded" : "Connect failed");
+        }
+
         bool IsJoiningRunning = false;
         public void BtnJoin()
         {
@@ -67,24 +82,8 @@ namespace Controller
         bool IsPlaceShipRunning = false;
 
         bool IsPlaceMineRunning = false;
-        public void BtnPlaceMine()
-        {
-            if (IsPlaceMineRunning) return;
-            //if (!TryReadCoordinates(out var x, out var y))
-            //{
-               // Debug.LogWarning($"SeaBattleController: Invalid coodinates");
-                //return;
-            //}
-            //PlaceMine(x, y);
-        }
 
         bool IsBombRunning = false;
-        //public void BtnBomb(Vector2Int coords)
-        //{
-        //    if (IsBombRunning) return;
-            
-        //    Bomb(coords.x, coords.y);
-        //}
 
         bool IsMarkReadyRunning = false;
         public void BtnMarkReady()
