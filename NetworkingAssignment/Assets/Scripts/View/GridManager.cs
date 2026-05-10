@@ -30,6 +30,18 @@ public class GridManager : MonoBehaviour
         GenerateGrid();
     }
 
+    public void DisplayGridVisually(int width, int height)
+    {
+        _width = width;
+        _height = height;
+        GenerateGrid();
+    }
+
+    public void ClearGridVisually()
+    {
+        DestroyAllTiles();
+    }
+
     public void GenerateGrid()
     {
         DestroyAllTiles();
