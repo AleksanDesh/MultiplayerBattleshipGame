@@ -217,11 +217,17 @@ namespace Network
                 {
                     player.SetSessionState(PlayerSessionState.InMenu); // disconnected outside battle, back to menu state
                 }
+                else if (player.SessionState == PlayerSessionState.InGame)
+                {   // TODO: Make this happen. Now it is cleaned
+                    // Keep the session mapping only for in-battle reconnects.
+                    // This deliberately does not remove _userSessionKey.
+                    
+                    CleanupSession(_userSessionKey[player.Username], "Player disconnected, clearing");
+                }
 
-                // Keep the session mapping only for in-battle reconnects.
-                // This deliberately does not remove _userSessionKey.
+  
 
-                OSCLog.WriteLine($"Server: Disconnected {player.Username}. Reason: {reason}");
+                    OSCLog.WriteLine($"Server: Disconnected {player.Username}. Reason: {reason}");
             }
             else
             {
@@ -240,15 +246,15 @@ namespace Network
         {
             // Intentionally empty for now.
             // TODO: Fill this with reconnect/rejoin packet payload later.
-            OSCLog.WriteLine($"User {player.Username} reconnected. Currently no logic to reconnect to the battle.");
-            if (session.TryGetEnemyParticipant(player, out var participant))
-            {// Tell the connected enemy, that he lost, so he resets the scene. This ?might? fail if the other party left as well.
-             // If both leave, and none rejoin. The session will remain cached.
-                var enemyPlayer = participant?.Player; 
-                OSCMessageOut kickMessage = new OSCMessageOut("/Victory").AddBool(false);
-                if(_userTcpKey.TryGetValue(enemyPlayer.Username, out var enemyConnection))
-                    enemyConnection.Send(kickMessage.GetBytes());   
-            }   
+            //OSCLog.WriteLine($"User {player.Username} reconnected. Currently no logic to reconnect to the battle.");
+            //if (session.TryGetEnemyParticipant(player, out var participant))
+            //{// Tell the connected enemy, that he lost, so he resets the scene. This ?might? fail if the other party left as well.
+            // // If both leave, and none rejoin. The session will remain cached.
+            //    var enemyPlayer = participant?.Player; 
+            //    OSCMessageOut kickMessage = new OSCMessageOut("/Victory").AddBool(false);
+            //    if(_userTcpKey.TryGetValue(enemyPlayer.Username, out var enemyConnection))
+            //        enemyConnection.Send(kickMessage.GetBytes());   
+            //}   
             CleanupSession(session, "Disconnected user tryed to reconnect. No logic to reconnect yet, so cleaning up");
         }
 
@@ -291,12 +297,18 @@ namespace Network
                 .Select(kvp => kvp.Key)
                 .ToList();
 
+            OSCMessageOut kickMessage = new OSCMessageOut("/Victory").AddBool(false);
+
             foreach (var username in usernames)
             {
                 _userSessionKey.Remove(username);
 
                 if (_userPlayerKey.TryGetValue(username, out var player))
                     player.SetSessionState(PlayerSessionState.InMenu);
+
+                // Kick all the players from the session. Sends defeat message
+                if (_userTcpKey.TryGetValue(username, out var connection))
+                    connection.Send(kickMessage.GetBytes());
             }
 
             _sessionDatas.Remove(session);

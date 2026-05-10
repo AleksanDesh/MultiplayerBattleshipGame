@@ -61,7 +61,8 @@ namespace Controller
                 GlobalMessageUI.Instance.Show($"Invalid IP address: '{text}'");
                 return;
             }
-            bool connected = _networkClient.Connect();
+            //GlobalMessageUI.Instance.Show("Client: Connecting with client to server " + ip);
+            bool connected = _networkClient.Connect(ip);
             GlobalMessageUI.Instance.Show(connected ? "Connect succeeded" : "Connect failed");
         }
 

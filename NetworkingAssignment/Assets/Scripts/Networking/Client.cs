@@ -16,7 +16,7 @@ namespace Network
     { // TODO: Add error displaying dictionary + make it Singleton
         public static Client Instance { get; private set; }
 
-        public IPAddress ServerIP = IPAddress.Loopback;// IPAddress.Parse("");//IPAddress.Loopback;
+        //public IPAddress ServerIP = IPAddress.Loopback;// IPAddress.Parse("");//IPAddress.Loopback;
 
 
         private const int RequestTimeoutMs = 10000;
@@ -320,7 +320,7 @@ namespace Network
             throw ex;
         }
 
-        public bool Connect(int port = 5376)
+        public bool Connect(IPAddress serverIp, int port = 5376)
         {
             try
             {
@@ -328,11 +328,11 @@ namespace Network
                 _serverUnavailableRaised = false;
 
                 _tcpClient = new TcpClient();
-                _tcpClient.Connect(new IPEndPoint(ServerIP, port));
+                
+                _tcpClient.Connect(new IPEndPoint(serverIp, port));
 
                 _connection = new TcpNetworkConnection(_tcpClient);
 
-                Debug.Log("Client: Connecting with client to server " + ServerIP);
 
                 _dispatcher = new OSCDispatcher();
                 _dispatcher.ShowIncomingMessages = true;

@@ -416,10 +416,20 @@ namespace View
 
         void VictoryResult(bool isWinner)
         {// TODO: if true, we won, if not -> enemy
+            var globalMessager = GlobalMessageUI.Instance;
+
+
             if (isWinner)
+            {
                 OnVictoryEvent?.Invoke();
+                globalMessager.Show("You WON");
+            }
             else
+            {
                 OnLoseEvent?.Invoke();
+                globalMessager.Show("You LOOOOOST");
+            }
+
         }
 
         void TimeoutViewChange(TimeoutInfo info)
