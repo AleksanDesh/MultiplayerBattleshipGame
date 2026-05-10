@@ -253,6 +253,8 @@ namespace Model
 
                 case Cell.CellState.Bombed:
                     {
+                        // Keep the turn if somehow bombed a bombed cell
+                        session._participantTurn = participant.Side;
                         return BombingResult.AlreadyBombed;
                     }
 

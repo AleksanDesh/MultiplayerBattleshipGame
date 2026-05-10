@@ -221,7 +221,17 @@ namespace Network
                 {   // TODO: Make this happen. Now it is cleaned
                     // Keep the session mapping only for in-battle reconnects.
                     // This deliberately does not remove _userSessionKey.
-                    
+
+                    // Kick the other party if exists
+                    if (_userSessionKey.TryGetValue(player.Username, out var session) 
+                        && session.TryGetEnemyParticipant(player, out var participant)
+                        && _userTcpKey.TryGetValue(participant.Player.Username, out var enemyConnection))
+                    {
+                        
+                        OSCMessageOut kickMessage = new OSCMessageOut("/Victory").AddBool(false);
+                        enemyConnection.Send(kickMessage.GetBytes());
+
+                    }
                     CleanupSession(_userSessionKey[player.Username], "Player disconnected, clearing");
                 }
 
@@ -246,15 +256,15 @@ namespace Network
         {
             // Intentionally empty for now.
             // TODO: Fill this with reconnect/rejoin packet payload later.
-            //OSCLog.WriteLine($"User {player.Username} reconnected. Currently no logic to reconnect to the battle.");
-            //if (session.TryGetEnemyParticipant(player, out var participant))
-            //{// Tell the connected enemy, that he lost, so he resets the scene. This ?might? fail if the other party left as well.
-            // // If both leave, and none rejoin. The session will remain cached.
-            //    var enemyPlayer = participant?.Player; 
-            //    OSCMessageOut kickMessage = new OSCMessageOut("/Victory").AddBool(false);
-            //    if(_userTcpKey.TryGetValue(enemyPlayer.Username, out var enemyConnection))
-            //        enemyConnection.Send(kickMessage.GetBytes());   
-            //}   
+            OSCLog.WriteLine($"User {player.Username} reconnected. Currently no logic to reconnect to the battle.");
+            if (session.TryGetEnemyParticipant(player, out var participant))
+            {// Tell the connected enemy, that he lost, so he resets the scene. This ?might? fail if the other party left as well.
+             // If both leave, and none rejoin. The session will remain cached.
+                var enemyPlayer = participant?.Player;
+                OSCMessageOut kickMessage = new OSCMessageOut("/Victory").AddBool(false);
+                if (_userTcpKey.TryGetValue(enemyPlayer.Username, out var enemyConnection))
+                    enemyConnection.Send(kickMessage.GetBytes());
+            }
             CleanupSession(session, "Disconnected user tryed to reconnect. No logic to reconnect yet, so cleaning up");
         }
 
@@ -297,7 +307,6 @@ namespace Network
                 .Select(kvp => kvp.Key)
                 .ToList();
 
-            OSCMessageOut kickMessage = new OSCMessageOut("/Victory").AddBool(false);
 
             foreach (var username in usernames)
             {
@@ -307,8 +316,7 @@ namespace Network
                     player.SetSessionState(PlayerSessionState.InMenu);
 
                 // Kick all the players from the session. Sends defeat message
-                if (_userTcpKey.TryGetValue(username, out var connection))
-                    connection.Send(kickMessage.GetBytes());
+
             }
 
             _sessionDatas.Remove(session);
@@ -618,6 +626,12 @@ namespace Network
 
             if (!_tcpNetPlayerKey.TryGetValue(connection, out var player))
                 result = 1;
+            if (player != null && _userSessionKey.TryGetValue(player.Username, out var session))
+            {
+                DisconnectConnection(connection, "Player already in a session. You can't enqueue while InGame");
+                return;
+            }
+
             else if (!_matchQueue.Any(q => q.Player.Username == player.Username))
             {
                 player.SetSessionState(PlayerSessionState.InQueue);
@@ -979,6 +993,11 @@ namespace Network
         /// <returns></returns>
         public string MarkReady(string username, out int result)
         {
+            if (!_userSessionKey.ContainsKey(username))
+            {
+                result = 5;
+                return $"Server: {username} is not in a session";
+            }
             var player = _userPlayerKey[username];
             var session = _userSessionKey[username];
             var outcome = _battleBehavior.MarkReady(session, player);

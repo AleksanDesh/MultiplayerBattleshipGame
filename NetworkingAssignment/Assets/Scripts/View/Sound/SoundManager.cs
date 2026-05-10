@@ -101,11 +101,13 @@ public class SoundManager : MonoBehaviour
 
     public void PlayVictorySound()
     {
+        Debug.Log("Playing victory sound");
         PlaySfx(victorySound, VictoryVolume);
     }
 
     public void PlayLossSound()
     {
+        Debug.Log("Playing loss sound");
         PlaySfx(lossSound, LossVolume);
     }
 

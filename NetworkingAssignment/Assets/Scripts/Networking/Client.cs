@@ -241,6 +241,8 @@ namespace Network
             if (ex != null) Debug.LogWarning(ex);
             else Debug.LogWarning(reason);
 
+            GlobalMessageUI.Instance.Show(ex.ToString());
+
             OnServerUnavailable?.Invoke(reason);
         }
 

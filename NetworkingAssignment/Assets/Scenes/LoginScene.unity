@@ -1513,17 +1513,17 @@ MonoBehaviour:
   clickSound: {fileID: 8300000, guid: e41f29c8bc9050e4c837cd4ebb6b6fee, type: 3}
   ClickVolume: 0.07
   shipPlacedSound: {fileID: 8300000, guid: 3e59c50fd62d86549855671f0db30f8e, type: 3}
-  ShipPlacedVolume: 1
+  ShipPlacedVolume: 0.177
   minePlacedSound: {fileID: 8300000, guid: 3e59c50fd62d86549855671f0db30f8e, type: 3}
-  MinePlacedVolume: 1
+  MinePlacedVolume: 0.135
   explosionSound: {fileID: 8300000, guid: 343290dffb2955a45ac1f67b35c29815, type: 3}
-  ExplosionVolume: 1
+  ExplosionVolume: 0.098
   underwaterExplosionSound: {fileID: 8300000, guid: 698bc1eb3c8af344bb79f407eabcad7d, type: 3}
-  UnderwaterExplosionVolume: 1
+  UnderwaterExplosionVolume: 0.344
   victorySound: {fileID: 8300000, guid: bd8dfb3c6ba04b14388f29990743679d, type: 3}
-  VictoryVolume: 1
+  VictoryVolume: 0.737
   lossSound: {fileID: 8300000, guid: efaaa8d0757073840859a9abbac41089, type: 3}
-  LossVolume: 1
+  LossVolume: 0.735
   backgroundMusic: {fileID: 0}
   MusicVolume: 0.5
 --- !u!4 &808754752
