@@ -227,10 +227,15 @@ namespace Network
                         && session.TryGetEnemyParticipant(player, out var participant)
                         && _userTcpKey.TryGetValue(participant.Player.Username, out var enemyConnection))
                     {
-                        
-                        OSCMessageOut kickMessage = new OSCMessageOut("/Victory").AddBool(true);
-                        player.UpdateTopScore(player.TopScore + 1);
-                        _login.SaveAccount(player);
+                        OSCMessageOut kickMessage;
+                        if (session.Phase == SessionData.GamePhase.Battle)
+                        { // If the battle has started, and the oponent left -> victory
+                            kickMessage = new OSCMessageOut("/Victory").AddBool(true);
+                            player.UpdateTopScore(player.TopScore + 1);
+                            _login.SaveAccount(player);
+                        }
+                        else // Else both lose
+                            kickMessage = new OSCMessageOut("/Victory").AddBool(false);
                         enemyConnection.Send(kickMessage.GetBytes());
 
                     }

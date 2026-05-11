@@ -14,13 +14,16 @@ namespace Model
                 throw new ArgumentNullException(nameof(ship));
 
             if (ship.length <= 0)
-                throw new ArgumentOutOfRangeException(nameof(ship.length), "Ship length must be positive.");
+                throw new ArgumentOutOfRangeException(nameof(ship.length), "SeaBattleBehavior: Ship length must be positive.");
 
             var board = session.GetOwnBoard(player);
             var participant = session.GetParticipant(player);
 
             // If the ship already exists, this is a move/relocation of the same ship ID.
             bool isReplacement = participant.Ships.TryGetValue(ship.Id, out var previousShip);
+
+            if (isReplacement && previousShip?.length != ship.length)
+                throw new InvalidOperationException("SeaBattleBehavior: New Ship's Id length and existing ship's length don't match.");
 
             // Per-length quota check.
             // Example: if the scenario allows only one length-3 ship, placing a second one fails.
@@ -29,11 +32,6 @@ namespace Model
                 return PlaceShipResult.ShipLimitReached;
 
             uint currentCountForThisLength = participant.GetPlacedShipsByLength(ship.length);
-
-            // If the same ship ID is being moved but keeps the same length, the old one should
-            // not count against the quota, because it is effectively being replaced.
-            if (isReplacement && previousShip?.length == ship.length)
-                currentCountForThisLength--;
 
             if (currentCountForThisLength >= allowedCountForThisLength)
                 return PlaceShipResult.ShipLimitReached;

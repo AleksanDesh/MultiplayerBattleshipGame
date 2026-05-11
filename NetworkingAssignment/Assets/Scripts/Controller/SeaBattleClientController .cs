@@ -16,7 +16,8 @@ namespace Controller
     {
         //[SerializeField] private Server _server;
 
-        [SerializeField] private TMP_InputField IpInput;
+        //[SerializeField] private TMP_InputField IpInput;
+        private IPAddress IpAdtess = IPAddress.Parse("26.215.74.30");
         [SerializeField] private TMP_InputField _username;
         [SerializeField] private TMP_InputField _password;
 
@@ -54,15 +55,18 @@ namespace Controller
         #region ButtonMethods
         public void ConnectBtn()
         {
-            var text = IpInput.text.Trim();
+            //var text = IpInput.text.Trim();
 
-            if (!IPAddress.TryParse(text, out var ip))
-            {
-                GlobalMessageUI.Instance.Show($"Invalid IP address: '{text}'");
-                return;
-            }
+            //if (!IPAddress.TryParse(text, out var ip))
+            //{
+            //    GlobalMessageUI.Instance.Show($"Invalid IP address: '{text}'");
+            //    return;
+            //}
             //GlobalMessageUI.Instance.Show("Client: Connecting with client to server " + ip);
-            bool connected = _networkClient.Connect(ip);
+            //bool connected = _networkClient.Connect(ip);
+            //GlobalMessageUI.Instance.Show(connected ? "Connect succeeded" : "Connect failed");
+
+            bool connected = _networkClient.Connect(IpAdtess);
             GlobalMessageUI.Instance.Show(connected ? "Connect succeeded" : "Connect failed");
         }
 
