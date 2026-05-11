@@ -18,6 +18,8 @@ public class ButtonHoverHandler : MonoBehaviour, IPointerEnterHandler, IPointerE
         _spawnedPreset.SetActive(false);
         this.gameObject.GetComponent<Button>().onClick.AddListener(ForwardForDisabling);
         _disabler = FindFirstObjectByType<VisualDisabler>();
+        if (_disabler == null)
+            Debug.LogWarning("VisualDisabler is null");
     }
 
     public void OnPointerEnter(PointerEventData eventData)

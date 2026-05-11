@@ -45,13 +45,13 @@ public class VisualDisabler : MonoBehaviour
     {
         if (_grid == null)
         {
-            Debug.LogError("VisualDisabler: _grid is null.");
+            Debug.LogWarning("VisualDisabler: _grid is null.");
             return;
         }
 
         if (_shipPreset == null)
         {
-            Debug.LogError("VisualDisabler: _shipPreset is null.");
+            Debug.LogWarning("VisualDisabler: _shipPreset is null.");
             return;
         }
 
