@@ -228,7 +228,9 @@ namespace Network
                         && _userTcpKey.TryGetValue(participant.Player.Username, out var enemyConnection))
                     {
                         
-                        OSCMessageOut kickMessage = new OSCMessageOut("/Victory").AddBool(false);
+                        OSCMessageOut kickMessage = new OSCMessageOut("/Victory").AddBool(true);
+                        player.UpdateTopScore(player.TopScore + 1);
+                        _login.SaveAccount(player);
                         enemyConnection.Send(kickMessage.GetBytes());
 
                     }

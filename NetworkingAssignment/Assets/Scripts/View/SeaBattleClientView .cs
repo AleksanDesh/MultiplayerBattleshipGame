@@ -246,7 +246,7 @@ namespace View
                 case 0:
                     {
                         OnEnqueueingForBattle?.Invoke();
-                        _resultText.text = $"Enqueued sucessefully!";
+                        _resultText.text = $"Enqueued successfully!";
                         break;
                     }
                 case 1:
@@ -275,6 +275,7 @@ namespace View
             EnemyGrid._width = package.BoardSize;
             EnemyGrid._height = package.BoardSize;
             firstTurn = package.Turn;
+            _resultText.text = $"Battle started";
         }
 
         /// 0 = sucess
