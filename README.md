@@ -11,7 +11,7 @@ This is a multiplayer-only game where you play against another player.
 1. Run Server.exe.
 2. Copy the IP address displayed in the server console.
 3. Run Battleship Game.exe.
-4. Enter the server IP address you copied.
+4. Enter the server IP address you copied and press Connect.
 5. Choose one of the following:
 
    * Create a new account by filling in the registration fields, then click Register followed by Login.
