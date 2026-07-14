@@ -24,3 +24,8 @@ This is a multiplayer-only game where you play against another player.
    * One player joins Any Queue, or
    * Both players join Any Queue.
 9. Once matched, play the game.
+
+## Notes
+* At the moment, there are no known bugs.
+* If you encounter any bugs, unexpected behavior, or crashes, please let me know so I can investigate and fix them in a future update.
+* This game only supports LAN/VLAN multiplayer. Both players must be connected to the same local network or virtual LAN and be able to reach the server's IP address before attempting to play. If you're unable to connect, verify that the server is running, the IP address is correct, and that your firewall or antivirus is not blocking the connection.
